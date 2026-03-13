@@ -7,6 +7,7 @@ const dictionary = {
         btn_support: '💬 Support',
         btn_lang: '🌐 Change Language',
         btn_cancel: '❌ Cancel',
+        btn_back_main: '🏠 Back to Main Menu',
         select_game: '🎯 Please choose the game you want to top up:',
         no_games: '⚠️ Currently there are no games available for top-up. Please try again later.',
         topup_cancelled: '❌ Top-up process cancelled.',
@@ -26,6 +27,7 @@ const dictionary = {
         order_rejected: '❌ Your top-up order was rejected. Please contact support. (Order ID: {orderId})',
         admin_new_order_notif: '🔔 **New Order Received!**\n\n📦 **Order ID**: {orderId}\n🕹 **Game**: {game}\n🆔 **Player**: {playerId}\n💰 **Package**: {amount}\n💲 **Price**: {price}\n👤 **User**: @{username} (ID: {userId})',
         status_pending: 'pending ⏳',
+        status_paid: 'paid 💳',
         status_completed: 'completed ✅',
         status_rejected: 'rejected ❌',
         order_item: 'ID: {id} | Status: {status}\nGame: {game} | Amount: {amount}\n\n'
@@ -39,6 +41,7 @@ const dictionary = {
         btn_support: '💬 Поддержка',
         btn_lang: '🌐 Сменить язык',
         btn_cancel: '❌ Отмена',
+        btn_back_main: '🏠 В главное меню',
         select_game: '🎯 Пожалуйста, выберите игру для пополнения:',
         no_games: '⚠️ Сейчас нет доступных игр для пополнения.',
         topup_cancelled: '❌ Пополнение отменено.',
@@ -58,6 +61,7 @@ const dictionary = {
         order_rejected: '❌ Ваш заказ на пополнение был отклонен. Пожалуйста, свяжитесь с поддержкой. (ID заказа: {orderId})',
         admin_new_order_notif: '🔔 **Получен новый заказ!**\n\n📦 **ID заказа**: {orderId}\n🕹 **Игра**: {game}\n🆔 **Игрок**: {playerId}\n💰 **Пакет**: {amount}\n💲 **Цена**: {price}\n👤 **Пользователь**: @{username} (ID: {userId})',
         status_pending: 'в ожидании ⏳',
+        status_paid: 'оплачен 💳',
         status_completed: 'выполнен ✅',
         status_rejected: 'отклонен ❌',
         order_item: 'ID: {id} | Статус: {status}\nИгра: {game} | Сумма: {amount}\n\n'
@@ -71,6 +75,7 @@ const dictionary = {
         btn_support: '💬 Yordam',
         btn_lang: '🌐 Tilni o‘zgartirish',
         btn_cancel: '❌ Bekor qilish',
+        btn_back_main: '🏠 Asosiy menyuga qaytish',
         select_game: '🎯 Donat qilmoqchi bo‘lgan o‘yinni tanlang:',
         no_games: '⚠️ Hozircha donat qilish uchun o‘yinlar mavjud emas.',
         topup_cancelled: '❌ Donat jarayoni bekor qilindi.',
@@ -90,6 +95,7 @@ const dictionary = {
         order_rejected: '❌ Sizning buyurtmangiz rad etildi. Iltimos, qo‘llab-quvvatlash xizmati bilan bog‘laning. (Buyurtma ID: {orderId})',
         admin_new_order_notif: '🔔 **Yangi buyurtma qabul qilindi!**\n\n📦 **Buyurtma ID**: {orderId}\n🕹 **O‘yin**: {game}\n🆔 **Player**: {playerId}\n💎 **Paket**: {amount}\n💰 **Narxi**: {price}\n👤 **Foydalanuvchi**: @{username} (ID: {userId})',
         status_pending: 'kutilmoqda ⏳',
+        status_paid: "to'langan 💳",
         status_completed: 'yakunlandi ✅',
         status_rejected: 'rad etildi ❌',
         order_item: 'ID: {id} | Holati: {status}\nO‘yin: {game} | Miqdor: {amount}\n\n'

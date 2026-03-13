@@ -31,11 +31,11 @@ const orderSchema = new mongoose.Schema({
   },
   screenshot_file_id: {
     type: String, // Telegram file_id of the payment screenshot
-    required: true
+    required: false
   },
   status: {
     type: String,
-    enum: ['pending', 'completed', 'rejected'],
+    enum: ['pending', 'paid', 'completed', 'rejected'],
     default: 'pending'
   },
   created_at: {

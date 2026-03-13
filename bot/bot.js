@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const Product = require('../models/Product');
 
 const { t, getMainMenu, dictionary } = require('./i18n');
+const { checkPubgID } = require('../utils/pubg');
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
@@ -51,7 +52,7 @@ const topupWizard = new Scenes.WizardScene(
             if (products[i+1]) row.push(products[i+1]);
             buttons.push(row);
         }
-        buttons.push([t(lang, 'btn_cancel')]);
+        buttons.push([t(lang, 'btn_back_main')]);
 
         await ctx.reply(t(lang, 'select_game'), Markup.keyboard(buttons).resize().oneTime());
         return ctx.wizard.next();
@@ -60,7 +61,7 @@ const topupWizard = new Scenes.WizardScene(
     async (ctx) => {
         const lang = ctx.userLang;
         const text = ctx.message?.text;
-        if (text === t(lang, 'btn_cancel') || text === '/cancel') {
+        if (text === t(lang, 'btn_cancel') || text === t(lang, 'btn_back_main') || text === '/cancel') {
             await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
             return ctx.scene.leave();
         }
@@ -82,6 +83,23 @@ const topupWizard = new Scenes.WizardScene(
         
         ctx.wizard.state.order.player_id = text;
         const game = ctx.wizard.state.order.game;
+
+        // PUBG ID Verification
+        if (game.toLowerCase().includes('pubg')) {
+            await ctx.reply('🔍 Checking PUBG ID...');
+            const result = await checkPubgID(text);
+            if (result.success) {
+                await ctx.reply(`✅ Nickname: *${result.nickname}*`, { parse_mode: 'Markdown' });
+                ctx.wizard.state.order.nickname = result.nickname;
+            } else {
+                if (result.error === 'INVALID_ID' || result.error === 'NOT_FOUND') {
+                    await ctx.reply('❌ PUBG ID topilmadi yoki xato (kamida 8 ta raqam bo\'lishi kerak). Iltimos, qayta kiritib ko\'ring:');
+                } else {
+                    await ctx.reply('⚠️ PUBG xizmatida vaqtinchalik uzilish (timeout/rate limit). Iltimos, bir ozdan keyin qayta urinib ko\'ring yoki ID-ni qayta yuboring:');
+                }
+                return; // Stay in this step
+            }
+        }
         
         const options = await Product.find({ game: game, isActive: true }).sort({ price: 1 });
         if (options.length === 0) {
@@ -91,7 +109,7 @@ const topupWizard = new Scenes.WizardScene(
 
         // format package labels like "60 UC - 1000 so'm"
         const buttons = options.map(opt => [`${opt.package} - ${opt.price} so'm`]);
-        buttons.push([t(lang, 'btn_cancel')]);
+        buttons.push([t(lang, 'btn_back_main')]);
 
         await ctx.reply(t(lang, 'ask_amount'), Markup.keyboard(buttons).resize().oneTime());
         return ctx.wizard.next();
@@ -100,7 +118,7 @@ const topupWizard = new Scenes.WizardScene(
     async (ctx) => {
         const lang = ctx.userLang;
         const text = ctx.message?.text;
-        if (text === t(lang, 'btn_cancel') || text === '/cancel') {
+        if (text === t(lang, 'btn_cancel') || text === t(lang, 'btn_back_main') || text === '/cancel') {
             await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
             return ctx.scene.leave();
         }
@@ -110,7 +128,31 @@ const topupWizard = new Scenes.WizardScene(
         ctx.wizard.state.order.amount = amount;
         ctx.wizard.state.order.price = price;
 
-        await ctx.reply(t(lang, 'order_summary', { game: ctx.wizard.state.order.game, playerId: ctx.wizard.state.order.player_id, amount, price }), Markup.removeKeyboard());
+        const orderId = 'ORD-' + crypto.randomBytes(4).toString('hex').toUpperCase();
+        ctx.wizard.state.order.orderId = orderId;
+
+        try {
+            await Order.create({
+                order_id: orderId,
+                telegram_user_id: ctx.from.id,
+                username: ctx.from.username || '',
+                game: ctx.wizard.state.order.game,
+                player_id: ctx.wizard.state.order.player_id,
+                amount: ctx.wizard.state.order.amount,
+                price: ctx.wizard.state.order.price,
+                status: 'pending'
+            });
+        } catch (err) {
+            console.error("Error creating pending order:", err);
+        }
+
+        await ctx.reply(t(lang, 'order_summary', { 
+            game: ctx.wizard.state.order.game, 
+            playerId: ctx.wizard.state.order.player_id, 
+            amount, 
+            price,
+            orderId // Just in case we want to show it in summary
+        }), Markup.removeKeyboard());
         return ctx.wizard.next();
     },
     // Step 5: Receive Screenshot, Save Order
@@ -122,21 +164,12 @@ const topupWizard = new Scenes.WizardScene(
         }
 
         const photoFileId = ctx.message.photo[ctx.message.photo.length - 1].file_id;
-        ctx.wizard.state.order.screenshot_fileId = photoFileId;
-
-        const orderId = 'ORD-' + crypto.randomBytes(4).toString('hex').toUpperCase();
+        const orderId = ctx.wizard.state.order.orderId;
 
         try {
-            await Order.create({
-                order_id: orderId,
-                telegram_user_id: ctx.from.id,
-                username: ctx.from.username || '',
-                game: ctx.wizard.state.order.game,
-                player_id: ctx.wizard.state.order.player_id,
-                amount: ctx.wizard.state.order.amount,
-                price: ctx.wizard.state.order.price,
+            await Order.findOneAndUpdate({ order_id: orderId }, {
                 screenshot_file_id: photoFileId,
-                status: 'pending'
+                status: 'paid'
             });
 
             await ctx.reply(t(lang, 'order_received', { orderId }), Markup.keyboard(getMainMenu(lang)).resize());
@@ -304,6 +337,27 @@ bot.command('topup', (ctx) => {
     ctx.scene.enter('TOPUP_WIZARD');
 });
 
+bot.command('checkpubg', async (ctx) => {
+    const parts = ctx.message.text.split(' ');
+    if (parts.length < 2) {
+        return ctx.reply('Usage: /checkpubg PLAYER_ID\nExample: /checkpubg 5123456789');
+    }
+    
+    const uid = parts[1];
+    await ctx.reply('🔍 Checking PUBG ID...');
+    
+    const result = await checkPubgID(uid);
+    if (result.success) {
+        await ctx.reply(`✅ Nickname: ${result.nickname}`);
+    } else {
+        if (result.error === 'INVALID_ID' || result.error === 'NOT_FOUND') {
+            await ctx.reply('❌ PUBG ID topilmadi');
+        } else {
+            await ctx.reply('⚠️ PUBG xizmati vaqtinchalik ishlamayapti (timeout/rate limit). Iltimos, keyinroq qayta urinib ko\'ring.');
+        }
+    }
+});
+
 // Helper configuration to hear commands in all languages
 const getHearsArray = (key) => {
     return [dictionary.en[key], dictionary.ru[key], dictionary.uz[key]];
@@ -322,6 +376,14 @@ bot.hears(getHearsArray('btn_lang'), (ctx) => {
 
 bot.hears(getHearsArray('btn_topup'), (ctx) => {
     ctx.scene.enter('TOPUP_WIZARD');
+});
+
+bot.hears(getHearsArray('btn_back_main'), async (ctx) => {
+    try {
+        await ctx.scene.leave();
+    } catch (e) {}
+    const lang = ctx.userLang || 'en';
+    await ctx.reply(t(lang, 'welcome'), Markup.keyboard(getMainMenu(lang)).resize());
 });
 
 bot.hears(getHearsArray('btn_orders'), async (ctx) => {
@@ -350,10 +412,10 @@ bot.hears(getHearsArray('btn_support'), async (ctx) => {
     await ctx.reply(t(ctx.userLang, 'support_text'));
 });
 // --- Admin Menu Keyboard ---
-const getAdminMenu = () => {
+const getAdminMenu = (lang) => {
     return [
         ['📦 Pending Orders', '🕹 Manage Products'],
-        ['📊 Dashboard', '⏪ Back to User Menu']
+        ['📊 Dashboard', t(lang, 'btn_back_main')]
     ];
 };
 
@@ -377,10 +439,10 @@ const isAdmin = (ctx, next) => {
 
 // Admin Main Menu Trigger
 bot.command('admin', isAdmin, (ctx) => {
-    ctx.reply('👨‍💻 Welcome to the Admin Panel.\nSelect an action below:', Markup.keyboard(getAdminMenu()).resize());
+    ctx.reply('👨‍💻 Welcome to the Admin Panel.\nSelect an action below:', Markup.keyboard(getAdminMenu(ctx.userLang)).resize());
 });
 
-bot.hears('⏪ Back to User Menu', (ctx) => {
+bot.hears(getHearsArray('btn_back_main'), (ctx) => {
     ctx.reply(t(ctx.userLang, 'welcome'), Markup.keyboard(getMainMenu(ctx.userLang)).resize());
 });
 
@@ -433,6 +495,7 @@ bot.hears('📊 Dashboard', isAdmin, async (ctx) => {
     try {
         const totalOrders = await Order.countDocuments();
         const pendingOrders = await Order.countDocuments({ status: 'pending' });
+        const paidOrders = await Order.countDocuments({ status: 'paid' });
         const completedOrdersCount = await Order.countDocuments({ status: 'completed' });
         const totalUsers = await User.countDocuments();
         
@@ -446,7 +509,8 @@ bot.hears('📊 Dashboard', isAdmin, async (ctx) => {
         const txt = `📊 **Admin Dashboard**\n\n` +
                     `👥 **Total Users:** ${totalUsers}\n` +
                     `📦 **Total Orders:** ${totalOrders}\n` +
-                    `⏳ **Pending:** ${pendingOrders}\n` +
+                    `⏳ **Pending (Unpaid):** ${pendingOrders}\n` +
+                    `💳 **Paid (To Process):** ${paidOrders}\n` +
                     `✅ **Completed:** ${completedOrdersCount}\n` +
                     `💰 **Total Revenue:** ${totalRevenue.toLocaleString()} so'm`;
         
@@ -465,12 +529,12 @@ bot.action('admin_add_product', isAdmin, async (ctx) => {
 // Pending Orders Interactive
 bot.hears('📦 Pending Orders', isAdmin, async (ctx) => {
     try {
-        const orders = await Order.find({ status: 'pending' }).sort({ created_at: 1 });
+        const orders = await Order.find({ status: 'paid' }).sort({ created_at: 1 });
         if (orders.length === 0) {
-            return ctx.reply('✅ There are no pending orders right now!', Markup.keyboard(getAdminMenu()).resize());
+            return ctx.reply('✅ There are no paid orders waiting for processing!', Markup.keyboard(getAdminMenu(ctx.userLang)).resize());
         }
         
-        await ctx.reply(`Found ${orders.length} pending orders. Here they are:`, Markup.keyboard(getAdminMenu()).resize());
+        await ctx.reply(`Found ${orders.length} orders to process:`, Markup.keyboard(getAdminMenu(ctx.userLang)).resize());
 
         for (const o of orders) {
             let msg = `📦 **Order ID**: ${o.order_id}\n🕹 **Game**: ${o.game}\n🆔 **Player**: ${o.player_id}\n💰 **Package**: ${o.amount}\n💲 **Price**: ${o.price} so'm\n👤 **User**: @${o.username || o.telegram_user_id}`;
