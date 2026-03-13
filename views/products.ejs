@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Products - Top-Up Bot</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #04AA6D;
+            --primary-hover: #038d5a;
+            --danger: #ef4444;
+            --danger-hover: #dc2626;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --sidebar-bg: #0f172a;
+            --sidebar-hover: #1e293b;
+            --border: #e2e8f0;
+        }
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            margin: 0; 
+            background-color: var(--bg); 
+            color: var(--text-main);
+        }
+
+        .sidebar { 
+            width: 250px; 
+            background: var(--sidebar-bg); 
+            color: white; 
+            position: fixed; 
+            height: 100%; 
+            overflow: auto; 
+        }
+
+        .sidebar h2 {
+            text-align: center;
+            padding: 24px 0;
+            margin: 0;
+            font-weight: 700;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .sidebar a { 
+            display: block; 
+            color: #cbd5e1; 
+            padding: 14px 24px; 
+            text-decoration: none; 
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .sidebar a.active { 
+            background-color: var(--primary); 
+            color: white; 
+        }
+
+        .sidebar a:hover:not(.active) { 
+            background-color: var(--sidebar-hover); 
+            color: white; 
+        }
+
+        .content { 
+            margin-left: 250px; 
+            padding: 40px; 
+        }
+
+        h2.page-title {
+            margin: 0 0 32px 0;
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .card { 
+            background: var(--card-bg); 
+            padding: 30px; 
+            border-radius: 12px; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
+            margin-bottom: 30px; 
+        }
+
+        .card h3 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 15px; 
+        }
+
+        th, td { 
+            padding: 16px; 
+            text-align: left; 
+            border-bottom: 1px solid var(--border);
+        }
+
+        th { 
+            background-color: #f1f5f9; 
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.05em;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .btn { 
+            padding: 10px 20px; 
+            background-color: var(--primary); 
+            color: white; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            text-decoration: none; 
+            font-weight: 600;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .btn:hover { background-color: var(--primary-hover); }
+
+        .btn-danger { 
+            background-color: var(--danger); 
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+
+        .btn-danger:hover { background-color: var(--danger-hover); }
+
+        .form-group { margin-bottom: 20px; }
+        .form-group label { 
+            display: block; 
+            margin-bottom: 8px; 
+            font-weight: 500;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .form-group input { 
+            width: 100%; 
+            padding: 10px 14px; 
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            box-sizing: border-box; 
+            font-family: inherit;
+            font-size: 15px;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(4, 170, 109, 0.1);
+        }
+
+        .price-tag {
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .game-badge {
+            background: #f1f5f9;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+  <h2>Admin Panel</h2>
+  <a href="/dashboard">Dashboard</a>
+  <a href="/orders">Orders</a>
+  <a class="active" href="/products">Manage Products</a>
+  <a href="/logout">Logout</a>
+</div>
+
+<div class="content">
+  <h2 class="page-title">Manage Products & Games</h2>
+  
+  <div class="card">
+    <h3>Add New Product Package</h3>
+    <form action="/products/add" method="POST" style="max-width: 500px;">
+        <div class="form-group">
+            <label>Game Name (e.g., PUBG Mobile):</label>
+            <input type="text" name="game" placeholder="Enter game name..." required>
+        </div>
+        <div class="form-group">
+            <label>Package details (e.g., 60 UC - 1$):</label>
+            <input type="text" name="package" placeholder="Enter package details..." required>
+        </div>
+        <div class="form-group">
+            <label>Price (UZS):</label>
+            <input type="number" step="1" name="price" placeholder="0" required>
+        </div>
+        <button type="submit" class="btn">Add Product</button>
+    </form>
+  </div>
+
+  <div class="card" style="padding: 0; overflow: hidden;">
+    <div style="padding: 30px 30px 10px 30px;">
+        <h3>Current Products</h3>
+    </div>
+    <% if (products && products.length > 0) { %>
+      <table>
+        <thead>
+          <tr>
+            <th>Game</th>
+            <th>Package</th>
+            <th>Price</th>
+            <th style="text-align: right;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% products.forEach(p => { %>
+            <tr>
+              <td><span class="game-badge"><%= p.game %></span></td>
+              <td><%= p.package %></td>
+              <td class="price-tag"><%= p.price.toLocaleString() %> UZS</td>
+              <td style="text-align: right;">
+                <form action="/products/<%= p._id %>/delete" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this product?');">
+                  <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } else { %>
+      <div style="padding: 0 30px 30px 30px;">
+          <p style="color: var(--text-muted);">No products found. Add some above.</p>
+      </div>
+    <% } %>
+  </div>
+
+</div>
+
+</body>
+</html>

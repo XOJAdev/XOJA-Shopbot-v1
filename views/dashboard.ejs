@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Top-Up Bot</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #04AA6D;
+            --secondary: #333;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --sidebar-bg: #0f172a;
+            --sidebar-hover: #1e293b;
+            --accent-orange: #f59e0b;
+            --accent-green: #10b981;
+            --accent-blue: #3b82f6;
+            --accent-purple: #8b5cf6;
+        }
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            margin: 0; 
+            background-color: var(--bg); 
+            color: var(--text-main);
+        }
+
+        .sidebar { 
+            width: 250px; 
+            background: var(--sidebar-bg); 
+            color: white; 
+            position: fixed; 
+            height: 100%; 
+            overflow: auto; 
+            transition: all 0.3s ease;
+        }
+
+        .sidebar h2 {
+            text-align: center;
+            padding: 24px 0;
+            margin: 0;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .sidebar a { 
+            display: block; 
+            color: #cbd5e1; 
+            padding: 14px 24px; 
+            text-decoration: none; 
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .sidebar a.active { 
+            background-color: var(--primary); 
+            color: white; 
+        }
+
+        .sidebar a:hover:not(.active) { 
+            background-color: var(--sidebar-hover); 
+            color: white; 
+            padding-left: 30px;
+        }
+
+        .content { 
+            margin-left: 250px; 
+            padding: 40px; 
+        }
+
+        h2.page-title {
+            margin: 0 0 32px 0;
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 32px 0 16px 0;
+            color: var(--text-muted);
+        }
+
+        .card-container { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); 
+            gap: 24px; 
+            margin-bottom: 40px;
+        }
+
+        .card { 
+            background: var(--card-bg); 
+            padding: 24px; 
+            border-radius: 12px; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06); 
+            text-align: left; 
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+        }
+
+        .card h3 { 
+            margin: 0; 
+            color: var(--text-muted); 
+            font-size: 0.875rem; 
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+        }
+
+        .card p { 
+            font-size: 2rem; 
+            margin: 12px 0 0 0; 
+            color: var(--text-main); 
+            font-weight: 700; 
+        }
+
+        .card .trend {
+            display: inline-block;
+            margin-top: 8px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar { width: 70px; }
+            .sidebar h2, .sidebar a span { display: none; }
+            .content { margin-left: 70px; padding: 20px; }
+            .sidebar a { text-align: center; padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+  <h2>Admin Panel</h2>
+  <a class="active" href="/dashboard"><span>Dashboard</span></a>
+  <a href="/orders"><span>Orders</span></a>
+  <a href="/products"><span>Manage Products</span></a>
+  <a href="/logout"><span>Logout</span></a>
+</div>
+
+<div class="content">
+  <h2 class="page-title">Dashboard Overview</h2>
+  
+  <div class="section-title">Lifetime Statistics</div>
+  <div class="card-container">
+    <div class="card">
+        <h3>Total Orders</h3>
+        <p><%= totalOrders %></p>
+    </div>
+    <div class="card">
+        <h3>Pending Orders</h3>
+        <p style="color: var(--accent-orange);"><%= pendingOrders %></p>
+    </div>
+    <div class="card">
+        <h3>Completed Orders</h3>
+        <p style="color: var(--accent-green);"><%= completedOrders %></p>
+    </div>
+    <div class="card">
+        <h3>Total Revenue</h3>
+        <p style="color: var(--accent-blue);"><%= totalRevenue.toLocaleString() %> UZS</p>
+    </div>
+    <div class="card">
+        <h3>Total Users</h3>
+        <p style="color: var(--accent-purple);"><%= totalUsers %></p>
+    </div>
+  </div>
+
+  <div class="section-title">Today's Performance</div>
+  <div class="card-container">
+    <div class="card">
+        <h3>Today's Orders</h3>
+        <p><%= todayOrders %></p>
+    </div>
+    <div class="card">
+        <h3>Today's Revenue</h3>
+        <p style="color: var(--accent-green);"><%= todayRevenue.toLocaleString() %> UZS</p>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

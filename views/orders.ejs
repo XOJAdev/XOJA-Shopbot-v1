@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orders - Top-Up Bot</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #04AA6D;
+            --primary-hover: #038d5a;
+            --danger: #ef4444;
+            --danger-hover: #dc2626;
+            --info: #3b82f6;
+            --info-hover: #2563eb;
+            --warning: #f59e0b;
+            --success: #10b981;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --sidebar-bg: #0f172a;
+            --sidebar-hover: #1e293b;
+            --border: #e2e8f0;
+        }
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            margin: 0; 
+            background-color: var(--bg); 
+            color: var(--text-main);
+        }
+
+        .sidebar { 
+            width: 250px; 
+            background: var(--sidebar-bg); 
+            color: white; 
+            position: fixed; 
+            height: 100%; 
+            overflow: auto; 
+        }
+
+        .sidebar h2 {
+            text-align: center;
+            padding: 24px 0;
+            margin: 0;
+            font-weight: 700;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .sidebar a { 
+            display: block; 
+            color: #cbd5e1; 
+            padding: 14px 24px; 
+            text-decoration: none; 
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .sidebar a.active { 
+            background-color: var(--primary); 
+            color: white; 
+        }
+
+        .sidebar a:hover:not(.active) { 
+            background-color: var(--sidebar-hover); 
+            color: white; 
+        }
+
+        .content { 
+            margin-left: 250px; 
+            padding: 40px; 
+        }
+
+        .header-actions { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 32px; 
+        }
+
+        h2.page-title {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .filter-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .filter-select { 
+            padding: 10px 16px; 
+            border-radius: 8px; 
+            border: 1px solid var(--border); 
+            background: white;
+            font-family: inherit;
+            font-size: 14px;
+            color: var(--text-main);
+            outline: none;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .filter-select:focus {
+            border-color: var(--primary);
+        }
+        
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+        }
+
+        th, td { 
+            padding: 16px 20px; 
+            text-align: left; 
+            border-bottom: 1px solid var(--border); 
+        }
+
+        th { 
+            background-color: #f1f5f9; 
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.05em;
+        }
+        
+        tr:hover {
+            background-color: #f8fafc;
+        }
+
+        .status-badge { 
+            padding: 6px 10px; 
+            border-radius: 20px; 
+            font-size: 11px; 
+            font-weight: 700; 
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+        }
+
+        .status-pending { background-color: #fef3c7; color: #92400e; }
+        .status-completed { background-color: #dcfce7; color: #166534; }
+        .status-rejected { background-color: #fee2e2; color: #991b1b; }
+
+        .btn { 
+            padding: 8px 14px; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            color: white; 
+            font-size: 13px; 
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .btn-view { background-color: var(--info); }
+        .btn-view:hover { background-color: var(--info-hover); }
+
+        .btn-complete { background-color: var(--primary); }
+        .btn-complete:hover { background-color: var(--primary-hover); }
+
+        .btn-reject { background-color: var(--danger); }
+        .btn-reject:hover { background-color: var(--danger-hover); }
+        
+        .actions-cell {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .user-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .username {
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .user-id {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        form { display: inline; }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+  <h2>Admin Panel</h2>
+  <a href="/dashboard">Dashboard</a>
+  <a class="active" href="/orders">Orders</a>
+  <a href="/products">Manage Products</a>
+  <a href="/logout">Logout</a>
+</div>
+
+<div class="content">
+  <div class="header-actions">
+    <h2 class="page-title">Manage Orders</h2>
+    <div class="filter-container">
+        <label for="filter" style="font-size: 14px; font-weight: 500; color: var(--text-muted);">Filter Status:</label>
+        <select id="filter" class="filter-select" onchange="window.location.href='/orders?status='+this.value">
+            <option value="all" <%= currentFilter === 'all' ? 'selected' : '' %>>All Orders</option>
+            <option value="pending" <%= currentFilter === 'pending' ? 'selected' : '' %>>Pending</option>
+            <option value="completed" <%= currentFilter === 'completed' ? 'selected' : '' %>>Completed</option>
+            <option value="rejected" <%= currentFilter === 'rejected' ? 'selected' : '' %>>Rejected</option>
+        </select>
+    </div>
+  </div>
+  
+  <div class="card">
+    <table>
+      <thead>
+          <tr>
+              <th>Order ID</th>
+              <th>Customer</th>
+              <th>Order Details</th>
+              <th>Price</th>
+              <th>Date & Time</th>
+              <th>Status</th>
+              <th style="text-align: right;">Actions</th>
+          </tr>
+      </thead>
+      <tbody>
+          <% if (orders && orders.length > 0) { %>
+              <% orders.forEach(order => { %>
+                  <tr>
+                      <td style="font-weight: 600; color: var(--primary);"><%= order.order_id %></td>
+                      <td>
+                          <div class="user-info">
+                              <span class="username"><%= order.username ? '@' + order.username : 'No Username' %></span>
+                              <span class="user-id">ID: <%= order.telegram_user_id %></span>
+                          </div>
+                      </td>
+                      <td>
+                          <div style="font-weight: 500;"><%= order.game %></div>
+                          <div style="font-size: 13px; color: var(--text-muted);"><%= order.amount %> (ID: <%= order.player_id %>)</div>
+                      </td>
+                      <td style="font-weight: 600;"><%= parseFloat(order.price.replace(/[^0-9.-]+/g,"")).toLocaleString() %> UZS</td>
+                      <td style="font-size: 13px; color: var(--text-muted);">
+                          <%= new Date(order.created_at).toLocaleDateString() %><br>
+                          <%= new Date(order.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) %>
+                      </td>
+                      <td>
+                          <span class="status-badge status-<%= order.status %>"><%= order.status.toUpperCase() %></span>
+                      </td>
+                      <td style="text-align: right;">
+                          <div class="actions-cell" style="justify-content: flex-end;">
+                              <a href="/orders/<%= order.order_id %>/screenshot" target="_blank" class="btn btn-view" title="View Payment Screenshot">View Proof</a>
+                              <% if (order.status === 'pending') { %>
+                                  <form action="/orders/<%= order.order_id %>/status" method="POST">
+                                      <input type="hidden" name="status" value="completed">
+                                      <button type="submit" class="btn btn-complete">Approve</button>
+                                  </form>
+                                  <form action="/orders/<%= order.order_id %>/status" method="POST">
+                                      <input type="hidden" name="status" value="rejected">
+                                      <button type="submit" class="btn btn-reject">Reject</button>
+                                  </form>
+                              <% } %>
+                          </div>
+                      </td>
+                  </tr>
+              <% }) %>
+          <% } else { %>
+              <tr>
+                  <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-muted);">No orders found for this filter.</td>
+              </tr>
+          <% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</body>
+</html>
