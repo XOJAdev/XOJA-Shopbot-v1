@@ -7,23 +7,15 @@ exports.getDashboard = async (req, res) => {
   try {
     const totalOrders = await Order.countDocuments();
     const pendingOrders = await Order.countDocuments({ status: 'pending' });
+    const paidOrders = await Order.countDocuments({ status: 'paid' });
     const completedOrdersCount = await Order.countDocuments({ status: 'completed' });
     const totalUsers = await User.countDocuments();
     
-    // Today's statistics
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
     const todayOrders = await Order.countDocuments({ created_at: { $gte: today } });
-    const todayCompletedOrders = await Order.find({ status: 'completed', created_at: { $gte: today } });
     
-    let todayRevenue = 0;
-    todayCompletedOrders.forEach(o => {
-        const num = parseFloat(o.price.replace(/[^0-9.-]+/g,""));
-        if(!isNaN(num)) todayRevenue += num;
-    });
-
-    // Calculate total revenue from all completed orders
+    // Total Revenue
     const completedOrders = await Order.find({ status: 'completed' });
     let totalRevenue = 0;
     completedOrders.forEach(o => {
@@ -31,14 +23,71 @@ exports.getDashboard = async (req, res) => {
         if(!isNaN(num)) totalRevenue += num;
     });
 
+    // Monthly Revenue
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0,0,0,0);
+    const monthlyOrders = await Order.find({ status: 'completed', created_at: { $gte: startOfMonth } });
+    let monthlyRevenue = 0;
+    monthlyOrders.forEach(o => {
+        const num = parseFloat(o.price.replace(/[^0-9.-]+/g,""));
+        if(!isNaN(num)) monthlyRevenue += num;
+    });
+
+    // Today's Revenue
+    let todayRevenue = 0;
+    const todayCompleted = await Order.find({ status: 'completed', created_at: { $gte: today } });
+    todayCompleted.forEach(o => {
+        const num = parseFloat(o.price.replace(/[^0-9.-]+/g,""));
+        if(!isNaN(num)) todayRevenue += num;
+    });
+
+    // Top Products (Aggregation)
+    const topProducts = await Order.aggregate([
+        { $match: { status: 'completed' } },
+        { $group: { _id: { game: "$game", amount: "$amount" }, count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 5 }
+    ]);
+
+    // Daily Stats for Chart (last 14 days)
+    const chartData = [];
+    for (let i = 13; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        d.setHours(0,0,0,0);
+        
+        const nextD = new Date(d);
+        nextD.setDate(d.getDate() + 1);
+
+        const dayOrdersCount = await Order.countDocuments({ created_at: { $gte: d, $lt: nextD } });
+        const dayCompleted = await Order.find({ status: 'completed', created_at: { $gte: d, $lt: nextD } });
+        
+        let dayRevenue = 0;
+        dayCompleted.forEach(o => {
+            const num = parseFloat(o.price.replace(/[^0-9.-]+/g,""));
+            if(!isNaN(num)) dayRevenue += num;
+        });
+
+        chartData.push({
+            date: d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+            orders: dayOrdersCount,
+            revenue: dayRevenue
+        });
+    }
+
     res.render('dashboard', { 
         totalOrders, 
-        pendingOrders, 
+        pendingOrders,
+        paidOrders,
         completedOrders: completedOrdersCount, 
         totalRevenue,
         totalUsers,
         todayOrders,
-        todayRevenue
+        todayRevenue,
+        monthlyRevenue,
+        topProducts,
+        chartData: JSON.stringify(chartData)
     });
   } catch (error) {
     console.error(error);

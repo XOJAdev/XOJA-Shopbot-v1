@@ -72,17 +72,50 @@ const topupWizard = new Scenes.WizardScene(
             return;
         }
         ctx.wizard.state.order.game = text;
-        await ctx.reply(t(lang, 'ask_player_id', { game: text }), Markup.removeKeyboard());
+
+        const options = await Product.find({ game: text, isActive: true }).sort({ price: 1 });
+        if (options.length === 0) {
+            await ctx.reply(t(lang, 'no_packages'), Markup.keyboard(getMainMenu(lang)).resize());
+            return ctx.scene.leave();
+        }
+
+        // format package labels like "60 UC - 1000 so'm"
+        const buttons = options.map(opt => [`${opt.package} - ${opt.price} so'm`]);
+        buttons.push([t(lang, 'btn_back_main')]);
+
+        await ctx.reply(t(lang, 'ask_amount'), Markup.keyboard(buttons).resize().oneTime());
         return ctx.wizard.next();
     },
-    // Step 3: Receive Player ID, Ask Amount
+    // Step 3: Receive Package, Ask Player ID
     async (ctx) => {
         const lang = ctx.userLang;
         const text = ctx.message?.text;
+        if (text === t(lang, 'btn_cancel') || text === t(lang, 'btn_back_main') || text === '/cancel') {
+            await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
+            return ctx.scene.leave();
+        }
+
+        ctx.wizard.state.order.amount_price = text; // e.g. "60 UC - 1000 so'm"
+        const [amount, price] = text.split(' - ');
+        ctx.wizard.state.order.amount = amount;
+        ctx.wizard.state.order.price = price;
+
+        await ctx.reply(t(lang, 'ask_player_id', { game: ctx.wizard.state.order.game }), Markup.keyboard([[t(lang, 'btn_back_main')]]).resize());
+        return ctx.wizard.next();
+    },
+    // Step 4: Receive Player ID, Show Summary & Ask Screenshot
+    async (ctx) => {
+        const lang = ctx.userLang;
+        const text = ctx.message?.text;
+        if (text === t(lang, 'btn_cancel') || text === t(lang, 'btn_back_main') || text === '/cancel') {
+            await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
+            return ctx.scene.leave();
+        }
+
         if (!text) return ctx.reply(t(lang, 'provide_text'));
         
-        ctx.wizard.state.order.player_id = text;
         const game = ctx.wizard.state.order.game;
+        ctx.wizard.state.order.player_id = text;
 
         // PUBG ID Verification
         if (game.toLowerCase().includes('pubg')) {
@@ -100,33 +133,6 @@ const topupWizard = new Scenes.WizardScene(
                 return; // Stay in this step
             }
         }
-        
-        const options = await Product.find({ game: game, isActive: true }).sort({ price: 1 });
-        if (options.length === 0) {
-            await ctx.reply(t(lang, 'no_packages'), Markup.keyboard(getMainMenu(lang)).resize());
-            return ctx.scene.leave();
-        }
-
-        // format package labels like "60 UC - 1000 so'm"
-        const buttons = options.map(opt => [`${opt.package} - ${opt.price} so'm`]);
-        buttons.push([t(lang, 'btn_back_main')]);
-
-        await ctx.reply(t(lang, 'ask_amount'), Markup.keyboard(buttons).resize().oneTime());
-        return ctx.wizard.next();
-    },
-    // Step 4: Receive Amount, Ask Screenshot
-    async (ctx) => {
-        const lang = ctx.userLang;
-        const text = ctx.message?.text;
-        if (text === t(lang, 'btn_cancel') || text === t(lang, 'btn_back_main') || text === '/cancel') {
-            await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
-            return ctx.scene.leave();
-        }
-        
-        ctx.wizard.state.order.amount_price = text; // e.g. "60 UC - 1000 so'm"
-        const [amount, price] = text.split(' - ');
-        ctx.wizard.state.order.amount = amount;
-        ctx.wizard.state.order.price = price;
 
         const orderId = 'ORD-' + crypto.randomBytes(4).toString('hex').toUpperCase();
         ctx.wizard.state.order.orderId = orderId;
@@ -136,8 +142,8 @@ const topupWizard = new Scenes.WizardScene(
                 order_id: orderId,
                 telegram_user_id: ctx.from.id,
                 username: ctx.from.username || '',
-                game: ctx.wizard.state.order.game,
-                player_id: ctx.wizard.state.order.player_id,
+                game: game,
+                player_id: text,
                 amount: ctx.wizard.state.order.amount,
                 price: ctx.wizard.state.order.price,
                 status: 'pending'
@@ -147,11 +153,11 @@ const topupWizard = new Scenes.WizardScene(
         }
 
         await ctx.reply(t(lang, 'order_summary', { 
-            game: ctx.wizard.state.order.game, 
-            playerId: ctx.wizard.state.order.player_id, 
-            amount, 
-            price,
-            orderId // Just in case we want to show it in summary
+            game: game, 
+            playerId: text, 
+            amount: ctx.wizard.state.order.amount, 
+            price: ctx.wizard.state.order.price,
+            orderId
         }), Markup.removeKeyboard());
         return ctx.wizard.next();
     },
@@ -499,11 +505,33 @@ bot.hears('📊 Dashboard', isAdmin, async (ctx) => {
         const completedOrdersCount = await Order.countDocuments({ status: 'completed' });
         const totalUsers = await User.countDocuments();
         
-        const completedOrders = await Order.find({ status: 'completed' });
-        let totalRevenue = 0;
-        completedOrders.forEach(o => {
+        // Month stats
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0,0,0,0);
+        
+        const monthlyOrders = await Order.find({ 
+            status: 'completed', 
+            created_at: { $gte: startOfMonth } 
+        });
+        
+        let monthlyRevenue = 0;
+        monthlyOrders.forEach(o => {
             const num = parseFloat(o.price.replace(/[^0-9.-]+/g,""));
-            if(!isNaN(num)) totalRevenue += num;
+            if(!isNaN(num)) monthlyRevenue += num;
+        });
+
+        // Top Products
+        const topProducts = await Order.aggregate([
+            { $match: { status: 'completed' } },
+            { $group: { _index: { game: "$game", amount: "$amount" }, count: { $sum: 1 } } },
+            { $sort: { count: -1 } },
+            { $limit: 3 }
+        ]);
+
+        let topProductsTxt = '';
+        topProducts.forEach((p, i) => {
+            topProductsTxt += `${i+1}. ${p._index.game} (${p._index.amount}) — ${p.count} keys\n`;
         });
 
         const txt = `📊 **Admin Dashboard**\n\n` +
@@ -511,8 +539,9 @@ bot.hears('📊 Dashboard', isAdmin, async (ctx) => {
                     `📦 **Total Orders:** ${totalOrders}\n` +
                     `⏳ **Pending (Unpaid):** ${pendingOrders}\n` +
                     `💳 **Paid (To Process):** ${paidOrders}\n` +
-                    `✅ **Completed:** ${completedOrdersCount}\n` +
-                    `💰 **Total Revenue:** ${totalRevenue.toLocaleString()} so'm`;
+                    `✅ **Completed:** ${completedOrdersCount}\n\n` +
+                    `💰 **Current Month Revenue:** ${monthlyRevenue.toLocaleString()} so'm\n\n` +
+                    `🔥 **Top Products:**\n${topProductsTxt || 'No orders yet.'}`;
         
         await ctx.replyWithMarkdown(txt);
     } catch (err) {
