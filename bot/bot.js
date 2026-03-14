@@ -6,7 +6,6 @@ const crypto = require('crypto');
 const Product = require('../models/Product');
 
 const { t, getMainMenu, dictionary } = require('./i18n');
-const { checkPubgID } = require('../utils/pubg');
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
