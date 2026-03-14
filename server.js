@@ -30,15 +30,33 @@ app.use(session({
 // Provide bot instance to routes if needed
 app.locals.bot = bot;
 
+// Health Check Route (Uptime Monitoring)
+app.get('/health', (req, res) => res.send('XOJA Shopbot running'));
+app.get('/ping', (req, res) => res.status(200).send('pong'));
+
 // Routes
 app.use('/', adminRoutes);
 
-// Start bot
-bot.launch().then(() => {
-    console.log('Telegram Bot is running...');
-}).catch(err => {
-    console.error('Failed to launch Telegram Bot:', err);
-});
+// Routes
+app.use('/', adminRoutes);
+
+// Telegram Bot Webhook / Polling setup
+const WEBHOOK_URL = process.env.WEBHOOK_URL; // e.g. https://your-app.onrender.com
+
+if (WEBHOOK_URL) {
+    const secretPath = `/webhook/${bot.token}`;
+    app.use(bot.webhookCallback(secretPath));
+    bot.telegram.setWebhook(`${WEBHOOK_URL}${secretPath}`)
+        .then(() => console.log(`Webhook set to ${WEBHOOK_URL}${secretPath}`))
+        .catch(err => console.error('Error setting webhook:', err));
+} else {
+    // Fallback to Long Polling (Local Development)
+    bot.launch().then(() => {
+        console.log('Telegram Bot is running (Polling)...');
+    }).catch(err => {
+        console.error('Failed to launch Telegram Bot:', err);
+    });
+}
 
 // Enable graceful stop for bot
 process.once('SIGINT', () => bot.stop('SIGINT'));

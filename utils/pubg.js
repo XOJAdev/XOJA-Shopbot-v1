@@ -11,8 +11,8 @@ async function checkPubgID(uid) {
 
     const uidStr = uid.toString().trim();
 
-    // Validation: 8 digits minimum and numeric only
-    if (uidStr.length < 8 || !/^\d+$/.test(uidStr)) {
+    // Validation: numeric only
+    if (!/^\d+$/.test(uidStr)) {
         return { success: false, error: 'INVALID_ID' };
     }
 

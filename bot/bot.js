@@ -126,9 +126,9 @@ const topupWizard = new Scenes.WizardScene(
                 ctx.wizard.state.order.nickname = result.nickname;
             } else {
                 if (result.error === 'INVALID_ID' || result.error === 'NOT_FOUND') {
-                    await ctx.reply('❌ PUBG ID topilmadi yoki xato (kamida 8 ta raqam bo\'lishi kerak). Iltimos, qayta kiritib ko\'ring:');
+                    await ctx.reply('❌ PUBG ID topilmadi. Iltimos, ID raqamini tekshirib qayta kiriting:');
                 } else {
-                    await ctx.reply('⚠️ PUBG xizmatida vaqtinchalik uzilish (timeout/rate limit). Iltimos, bir ozdan keyin qayta urinib ko\'ring yoki ID-ni qayta yuboring:');
+                    await ctx.reply('⚠️ PUBG ID tekshirish xizmatida texnik ishlar olib borilmoqda yoki tarmoqda uzilish (timeout). Iltimos, bir ozdan so\'ng qayta urinib ko\'ring:');
                 }
                 return; // Stay in this step
             }
