@@ -21,6 +21,9 @@ const orderSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  nickname: {
+    type: String
+  },
   amount: {
     type: String,
     required: true

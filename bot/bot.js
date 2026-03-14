@@ -117,29 +117,6 @@ const topupWizard = new Scenes.WizardScene(
         const game = ctx.wizard.state.order.game;
         ctx.wizard.state.order.player_id = text;
 
-        // PUBG ID Verification
-        if (game.toLowerCase().includes('pubg')) {
-            await ctx.reply('🔍 Checking PUBG ID...');
-            const result = await checkPubgID(text);
-            if (result.success) {
-                await ctx.reply(`✅ Nickname: *${result.nickname}*`, { parse_mode: 'Markdown' });
-                ctx.wizard.state.order.nickname = result.nickname;
-            } else {
-                let errorMsg = '❌ PUBG ID topilmadi. Iltimos, ID raqamini tekshirib qayta kiriting:';
-                
-                if (result.error === 'TIMEOUT') {
-                    errorMsg = '⚠️ PUBG xizmati javob bermadi (timeout). Iltimos, yana bir bor urinib ko\'ring:';
-                } else if (result.error === 'RATE_LIMIT') {
-                    errorMsg = '⚠️ Bozor haddan tashqari band (rate limit). Iltimos, 1 daqiqadan so\'ng qayta urinib ko\'ring:';
-                } else if (result.error === 'API_ERROR') {
-                    errorMsg = '⚠️ Tekshiruv xizmatida texnik nosozlik. Iltimos, bir ozdan so\'ng qayta urinib ko\'ring:';
-                }
-
-                await ctx.reply(errorMsg);
-                return; // Stay in this step
-            }
-        }
-
         const orderId = 'ORD-' + crypto.randomBytes(4).toString('hex').toUpperCase();
         ctx.wizard.state.order.orderId = orderId;
 
@@ -347,33 +324,6 @@ bot.action('lang_uz', (ctx) => handleLangSelection(ctx, 'uz'));
 // Helper for slash command fallback, just in case
 bot.command('topup', (ctx) => {
     ctx.scene.enter('TOPUP_WIZARD');
-});
-
-bot.command('checkpubg', async (ctx) => {
-    const parts = ctx.message.text.split(' ');
-    if (parts.length < 2) {
-        return ctx.reply('Usage: /checkpubg PLAYER_ID\nExample: /checkpubg 5123456789 or 123456');
-    }
-    
-    const uid = parts[1];
-    await ctx.reply('🔍 Checking PUBG ID...');
-    
-    const result = await checkPubgID(uid);
-    if (result.success) {
-        await ctx.reply(`✅ Nickname: ${result.nickname}`);
-    } else {
-        let errorMsg = '❌ PUBG ID topilmadi';
-        
-        if (result.error === 'TIMEOUT') {
-            errorMsg = '⚠️ PUBG xizmati javob bermadi (timeout).';
-        } else if (result.error === 'RATE_LIMIT') {
-            errorMsg = '⚠️ Bozor band (rate limit). 1 daqiqadan so\'ng urinib ko\'ring.';
-        } else if (result.error === 'API_ERROR') {
-            errorMsg = '⚠️ Xizmatda texnik nosozlik.';
-        }
-        
-        await ctx.reply(errorMsg);
-    }
 });
 
 // Helper configuration to hear commands in all languages
