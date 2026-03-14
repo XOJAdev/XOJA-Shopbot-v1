@@ -346,7 +346,7 @@ bot.command('topup', (ctx) => {
 bot.command('checkpubg', async (ctx) => {
     const parts = ctx.message.text.split(' ');
     if (parts.length < 2) {
-        return ctx.reply('Usage: /checkpubg PLAYER_ID\nExample: /checkpubg 5123456789');
+        return ctx.reply('Usage: /checkpubg PLAYER_ID\nExample: /checkpubg 5123456789 or 123456');
     }
     
     const uid = parts[1];
