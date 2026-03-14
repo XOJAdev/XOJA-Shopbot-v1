@@ -2,7 +2,7 @@ app = "xoja-shopbot-v1"
 primary_region = "fra"
 
 [http_service]
-  internal_port = 3000
+  internal_port = 8080
   force_https = true
   auto_stop_machines = true
   auto_start_machines = true
@@ -11,7 +11,7 @@ primary_region = "fra"
 
 [[services]]
   protocol = "tcp"
-  internal_port = 3000
+  internal_port = 8080
 
   [[services.ports]]
     port = 80
