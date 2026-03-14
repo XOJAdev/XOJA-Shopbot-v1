@@ -1,0 +1,16 @@
+2026-03-14 10:21:57: Failed to launch Telegram Bot: TelegramError: 409: Conflict: terminated by setWebhook request
+    at Telegram.callApi (C:\Users\asus\Desktop\XOJA-Shopbot-v1\node_modules\telegraf\lib\core\network\client.js:315:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async [Symbol.asyncIterator] (C:\Users\asus\Desktop\XOJA-Shopbot-v1\node_modules\telegraf\lib\core\network\polling.js:30:33)
+    at async Polling.loop (C:\Users\asus\Desktop\XOJA-Shopbot-v1\node_modules\telegraf\lib\core\network\polling.js:73:30)
+    at async Telegraf.launch (C:\Users\asus\Desktop\XOJA-Shopbot-v1\node_modules\telegraf\lib\telegraf.js:194:13) {
+  response: {
+    ok: false,
+    error_code: 409,
+    description: 'Conflict: terminated by setWebhook request'
+  },
+  on: {
+    method: 'getUpdates',
+    payload: { timeout: 50, offset: 0, allowed_updates: [] }
+  }
+}
