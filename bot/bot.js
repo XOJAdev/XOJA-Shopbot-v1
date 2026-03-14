@@ -125,11 +125,17 @@ const topupWizard = new Scenes.WizardScene(
                 await ctx.reply(`✅ Nickname: *${result.nickname}*`, { parse_mode: 'Markdown' });
                 ctx.wizard.state.order.nickname = result.nickname;
             } else {
-                if (result.error === 'INVALID_ID' || result.error === 'NOT_FOUND') {
-                    await ctx.reply('❌ PUBG ID topilmadi. Iltimos, ID raqamini tekshirib qayta kiriting:');
-                } else {
-                    await ctx.reply('⚠️ PUBG ID tekshirish xizmatida texnik ishlar olib borilmoqda yoki tarmoqda uzilish (timeout). Iltimos, bir ozdan so\'ng qayta urinib ko\'ring:');
+                let errorMsg = '❌ PUBG ID topilmadi. Iltimos, ID raqamini tekshirib qayta kiriting:';
+                
+                if (result.error === 'TIMEOUT') {
+                    errorMsg = '⚠️ PUBG xizmati javob bermadi (timeout). Iltimos, yana bir bor urinib ko\'ring:';
+                } else if (result.error === 'RATE_LIMIT') {
+                    errorMsg = '⚠️ Bozor haddan tashqari band (rate limit). Iltimos, 1 daqiqadan so\'ng qayta urinib ko\'ring:';
+                } else if (result.error === 'API_ERROR') {
+                    errorMsg = '⚠️ Tekshiruv xizmatida texnik nosozlik. Iltimos, bir ozdan so\'ng qayta urinib ko\'ring:';
                 }
+
+                await ctx.reply(errorMsg);
                 return; // Stay in this step
             }
         }
@@ -356,11 +362,17 @@ bot.command('checkpubg', async (ctx) => {
     if (result.success) {
         await ctx.reply(`✅ Nickname: ${result.nickname}`);
     } else {
-        if (result.error === 'INVALID_ID' || result.error === 'NOT_FOUND') {
-            await ctx.reply('❌ PUBG ID topilmadi');
-        } else {
-            await ctx.reply('⚠️ PUBG xizmati vaqtinchalik ishlamayapti (timeout/rate limit). Iltimos, keyinroq qayta urinib ko\'ring.');
+        let errorMsg = '❌ PUBG ID topilmadi';
+        
+        if (result.error === 'TIMEOUT') {
+            errorMsg = '⚠️ PUBG xizmati javob bermadi (timeout).';
+        } else if (result.error === 'RATE_LIMIT') {
+            errorMsg = '⚠️ Bozor band (rate limit). 1 daqiqadan so\'ng urinib ko\'ring.';
+        } else if (result.error === 'API_ERROR') {
+            errorMsg = '⚠️ Xizmatda texnik nosozlik.';
         }
+        
+        await ctx.reply(errorMsg);
     }
 });
 

@@ -23,9 +23,11 @@ async function checkPubgID(uid) {
         `https://pubgm.isan.eu.org/nickname/pubgm?uid=${uidStr}`,
         `https://v3.api.isanserver.xyz/nickname/pubgm?uid=${uidStr}`,
         `https://nickname.isan.eu.org/nickname/pubgm?uid=${uidStr}`,
+        `https://pubgm.isan.pro/nickname/pubgm?uid=${uidStr}`, // New mirror
         `https://v2.api.isanserver.xyz/nickname/pubgm?uid=${uidStr}`,
         `https://razer.isan.eu.org/nickname/pubgm?uid=${uidStr}`,
-        `https://unipin.isan.eu.org/nickname/pubgm?uid=${uidStr}`
+        `https://unipin.isan.eu.org/nickname/pubgm?uid=${uidStr}`,
+        `https://smile-one.isan.eu.org/nickname/pubgm?uid=${uidStr}` // New source
     ];
 
     let lastError = 'API_ERROR';
@@ -34,10 +36,10 @@ async function checkPubgID(uid) {
         try {
             console.log(`Trying PUBG API: ${url}`);
             const response = await axios.get(url, {
-                timeout: 8000, // Increased timeout to 8 seconds
+                timeout: 7000, 
                 headers: {
                     'Accept': 'application/json, text/plain, */*',
-                    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
                     'Origin': 'https://www.midasbuy.com',
                     'Referer': 'https://www.midasbuy.com/'
                 }
@@ -59,12 +61,13 @@ async function checkPubgID(uid) {
                 lastError = 'TIMEOUT';
             } else if (error.response && error.response.status === 429) {
                 lastError = 'RATE_LIMIT';
+                console.warn(`Rate limit hit on: ${url}`);
             } else {
                 lastError = 'API_ERROR';
             }
             console.error(`PUBG API (${url}) Error:`, error.message);
-            // Optionally add a small delay before next source
-            await new Promise(resolve => setTimeout(resolve, 500));
+            // Small delay to avoid hammering
+            await new Promise(resolve => setTimeout(resolve, 300));
         }
     }
 
