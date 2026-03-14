@@ -1,0 +1,6 @@
+2026-03-14 09:52:37: [dotenv@17.3.1] injecting env (7) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+2026-03-14 09:52:37: Server running on http://localhost:3000
+2026-03-14 09:52:37: MongoDB Connected: 127.0.0.1
+2026-03-14 10:00:59: [dotenv@17.3.1] injecting env (7) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+2026-03-14 10:00:59: Server running on http://localhost:3000
+2026-03-14 10:00:59: MongoDB Connected: 127.0.0.1

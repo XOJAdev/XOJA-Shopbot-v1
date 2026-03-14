@@ -11,7 +11,10 @@ const bot = new Telegraf(process.env.BOT_TOKEN);
 
 // Global error handler
 bot.catch((err, ctx) => {
-    console.error(`Error for ${ctx.updateType}:`, err);
+    console.error(`Error for ${ctx.updateType} (update_id: ${ctx.update.update_id}):`, err);
+    if (ctx.from) {
+        console.error(`Error from user ${ctx.from.id} (@${ctx.from.username || 'N/A'})`);
+    }
 });
 
 // User Language Middleware
@@ -40,6 +43,7 @@ const topupWizard = new Scenes.WizardScene(
         ctx.wizard.state.order = {};
         const products = await Product.find({ isActive: true }).distinct('game');
         if (products.length === 0) {
+            console.log("No products found in DB for user:", ctx.from.id);
             await ctx.reply(t(lang, 'no_games'), Markup.keyboard(getMainMenu(lang)).resize());
             return ctx.scene.leave();
         }
@@ -74,6 +78,7 @@ const topupWizard = new Scenes.WizardScene(
 
         const options = await Product.find({ game: text, isActive: true }).sort({ price: 1 });
         if (options.length === 0) {
+            console.log("No packages found for game:", text);
             await ctx.reply(t(lang, 'no_packages'), Markup.keyboard(getMainMenu(lang)).resize());
             return ctx.scene.leave();
         }
