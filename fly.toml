@@ -1,5 +1,5 @@
-app_name = "xoja-shopbot-v1"
-primary_region = "ams"
+app = "xoja-shopbot-v1"
+primary_region = "fra"
 
 [http_service]
   internal_port = 3000
@@ -20,12 +20,3 @@ primary_region = "ams"
   [[services.ports]]
     port = 443
     handlers = ["tls", "http"]
-
-  [services.concurrency]
-    type = "connections"
-    hard_limit = 25
-    soft_limit = 20
-
-[[stateless_service]]
-  name = "app"
-  internal_port = 3000
