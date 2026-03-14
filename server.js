@@ -43,26 +43,32 @@ app.use('/', adminRoutes);
 app.use('/', adminRoutes);
 
 // Telegram Bot Webhook setup
-const WEBHOOK_URL = process.env.RENDER_EXTERNAL_URL || process.env.WEBHOOK_URL;
+const isFly = !!process.env.FLY_APP_NAME;
+const APP_URL = isFly ? `https://${process.env.FLY_APP_NAME}.fly.dev` : (process.env.RENDER_EXTERNAL_URL || process.env.WEBHOOK_URL);
 
-if (WEBHOOK_URL) {
+if (APP_URL) {
     const webhookPath = '/telegram-webhook';
+    const webhookUrl = APP_URL.endsWith('/') ? `${APP_URL}${webhookPath.slice(1)}` : `${APP_URL}${webhookPath}`;
     
-    // Explicit webhook route as requested
+    // Explicit webhook route
     app.post(webhookPath, (req, res) => {
         bot.handleUpdate(req.body);
         res.sendStatus(200);
     });
 
-    bot.telegram.setWebhook(`${WEBHOOK_URL}${webhookPath}`)
-        .then(() => console.log(`🚀 Webhook set to ${WEBHOOK_URL}${webhookPath}`))
+    bot.telegram.setWebhook(webhookUrl)
+        .then(() => console.log(`🚀 Telegram Webhook set to ${webhookUrl} (Environment: ${isFly ? 'Fly.io' : 'Other'})`))
         .catch(err => console.error('❌ Error setting webhook:', err));
 } else {
     // Fallback to Long Polling (Local Development)
     bot.launch().then(() => {
         console.log('🤖 Telegram Bot is running (Polling)...');
     }).catch(err => {
-        console.error('❌ Failed to launch Telegram Bot:', err);
+        if (err.response && err.response.error_code === 409) {
+            console.error('❌ Conflict: Another bot instance is running. Please stop local instances or set WEBHOOK_URL.');
+        } else {
+            console.error('❌ Failed to launch Telegram Bot:', err);
+        }
     });
 }
 
