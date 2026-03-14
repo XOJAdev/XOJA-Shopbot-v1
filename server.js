@@ -3,6 +3,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const axios = require('axios');
 const session = require('express-session');
+const MongoStore = require('connect-mongo');
 const path = require('path');
 const connectDB = require('./config/db');
 const adminRoutes = require('./routes/adminRoutes');
@@ -16,8 +17,11 @@ console.log(`FLY_APP_NAME: ${process.env.FLY_APP_NAME || 'Not set'}`);
 console.log(`NODE_ENV: ${process.env.NODE_ENV || 'Not set'}`);
 console.log(`Initial PORT from env: ${process.env.PORT || 'Not set'}`);
 
-// Port configuration (Fly.io usually expects 8080)
-const PORT = process.env.PORT || 8080;
+// Port configuration (Fly.io expects 8080)
+const PORT = process.env.FLY_APP_NAME ? 8080 : (process.env.PORT || 3000);
+if (process.env.FLY_APP_NAME) {
+    console.log(`Fly.io detected: Forcing port to ${PORT}`);
+}
 
 // Connect to Database
 connectDB().catch(err => {
@@ -36,7 +40,15 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({
     secret: process.env.SESSION_SECRET || 'secret123',
     resave: false,
-    saveUninitialized: false
+    saveUninitialized: false,
+    store: MongoStore.create({
+        mongoUrl: process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/telegram_top_up_botz',
+        collectionName: 'sessions',
+        ttl: 24 * 60 * 60 // 1 day
+    }),
+    cookie: {
+        maxAge: 24 * 60 * 60 * 1000 // 1 day
+    }
 }));
 
 // Provide bot instance to routes if needed
@@ -54,9 +66,19 @@ app.use('/', adminRoutes);
 const isFly = !!process.env.FLY_APP_NAME;
 let APP_URL = process.env.WEBHOOK_URL || (isFly ? `https://${process.env.FLY_APP_NAME}.fly.dev` : process.env.RENDER_EXTERNAL_URL);
 
-// Clean up APP_URL (remove trailing slash)
-if (APP_URL && APP_URL.endsWith('/')) {
-    APP_URL = APP_URL.slice(0, -1);
+// Clean up APP_URL
+if (APP_URL) {
+    // If it's a full Telegram URL (mistake in env), extract only the domain/base if possible, 
+    // but better to just ensure it doesn't contain the bot token part.
+    if (APP_URL.includes('api.telegram.org')) {
+        console.warn('WARNING: WEBHOOK_URL seems to be a Telegram API URL. Overriding for safety.');
+        APP_URL = isFly ? `https://${process.env.FLY_APP_NAME}.fly.dev` : process.env.RENDER_EXTERNAL_URL;
+    }
+    
+    // Remove trailing slash
+    if (APP_URL && APP_URL.endsWith('/')) {
+        APP_URL = APP_URL.slice(0, -1);
+    }
 }
 
 if (APP_URL) {
@@ -87,14 +109,18 @@ if (APP_URL) {
     });
 }
 
-// Enable graceful stop for bot (only if running)
+// Enable graceful stop for bot
 const stopBot = (signal) => {
     try {
-        if (bot && bot.polling && bot.polling.started) {
+        // Only stop if bot exists and has a stop method
+        if (bot && typeof bot.stop === 'function') {
+            console.log(`Stopping bot (${signal})...`);
             bot.stop(signal);
         }
     } catch (e) {
-        // Silently ignore if bot already stopped or not running in polling mode
+        if (e.message !== 'Bot is not running!') {
+            console.error(`Error stopping bot: ${e.message}`);
+        }
     }
 };
 
