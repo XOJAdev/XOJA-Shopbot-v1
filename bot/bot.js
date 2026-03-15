@@ -124,6 +124,7 @@ const topupStep1 = async (ctx) => {
 const topupStep2 = async (ctx) => {
     const lang = ctx.userLang;
     const text = ctx.message?.text;
+    if (!text) return;
     
     if (text === t(lang, 'btn_cancel') || text === t(lang, 'btn_back_main') || text === '/cancel') {
         await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
@@ -153,6 +154,7 @@ const topupStep2 = async (ctx) => {
 const topupStep3 = async (ctx) => {
     const lang = ctx.userLang;
     const text = ctx.message?.text;
+    if (!text) return;
     
     if (text === t(lang, 'btn_back_main') || text === '/cancel') {
         await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
@@ -180,6 +182,7 @@ const topupStep3 = async (ctx) => {
 const topupStep4 = async (ctx) => {
     const lang = ctx.userLang;
     const text = ctx.message?.text;
+    if (!text) return;
     
     if (text === t(lang, 'btn_back_main') || text === '/cancel') {
         await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
@@ -238,7 +241,9 @@ const topupStep4 = async (ctx) => {
 const topupStep5 = async (ctx) => {
     const lang = ctx.userLang;
     
-    if (ctx.message?.text === t(lang, 'btn_back_main') || ctx.message?.text === '/cancel') {
+    const text = ctx.message?.text;
+    
+    if (text === t(lang, 'btn_back_main') || text === '/cancel') {
         await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
         return ctx.scene.leave();
     }
