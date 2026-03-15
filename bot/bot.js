@@ -314,12 +314,11 @@ const stage = new Scenes.Stage([topupWizard, addProductWizard]);
 // Persistent Session Setup
 const client = new MongoClient(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/telegram_top_up_botz');
 const db = client.db();
-const sessionCollection = db.collection('telegraf-sessions');
 
 // Ensure client is connected
 client.connect().catch(err => console.error('MongoDB Session Client Connect Error:', err));
 
-bot.use(mdbSession(sessionCollection));
+bot.use(mdbSession(db, { collectionName: 'telegraf-sessions' }));
 bot.use(stage.middleware());
 
 // --- User Commands ---
