@@ -53,7 +53,7 @@ const notifyAdmins = async (ctx, order, photoFileId = null) => {
         playerId: order.player_id,
         amount: order.amount,
         price: order.price,
-        username: order.username || 'N/A',
+        username: (order.username ? `@${order.username}` : 'N/A').replace(/_/g, '\\_'), // Basic escaping for safety
         userId: order.telegram_user_id
     };
 
@@ -63,16 +63,24 @@ const notifyAdmins = async (ctx, order, photoFileId = null) => {
         try {
             const adminUser = await User.findOne({ telegram_user_id: Number(adminId) });
             const adminLang = adminUser?.language_code || 'en';
-            const adminMsg = t(adminLang, 'admin_new_order_notif', orderData);
+            
+            // Format order summary with HTML to avoid Markdown parsing hell with underscores
+            const adminMsg = `<b>🔔 Yangi buyurtma qabul qilindi!</b>\n\n` +
+                           `📦 <b>ID</b>: <code>${order.order_id}</code>\n` +
+                           `🕹 <b>Oʻyin</b>: ${order.game}\n` +
+                           `🆔 <b>Player</b>: <code>${order.player_id}</code>\n` +
+                           `💎 <b>Paket</b>: ${order.amount}\n` +
+                           `💰 <b>Narxi</b>: ${order.price}\n` +
+                           `👤 <b>User</b>: @${order.username || 'N/A'} (ID: ${order.telegram_user_id})`;
 
             if (photoFileId) {
                 await ctx.telegram.sendPhoto(adminId, photoFileId, {
                     caption: adminMsg,
-                    parse_mode: 'Markdown'
+                    parse_mode: 'HTML'
                 });
             } else {
-                await ctx.telegram.sendMessage(adminId, `🔔 **New Pending Order**\n\n` + adminMsg, {
-                    parse_mode: 'Markdown'
+                await ctx.telegram.sendMessage(adminId, adminMsg, {
+                    parse_mode: 'HTML'
                 });
             }
         } catch (notificationErr) {
@@ -209,8 +217,7 @@ const topupStep4 = async (ctx) => {
             status: 'pending'
         });
         
-        // Notify admins about new order registration (unpaid yet)
-        notifyAdmins(ctx, order);
+        // REMOVED redundant notification from here. Only notify on payment.
 
     } catch (err) {
         console.error("Error creating pending order:", err);
@@ -344,7 +351,8 @@ const stage = new Scenes.Stage([topupWizard, addProductWizard]);
 
 // Persistent Session Setup
 const client = new MongoClient(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/telegram_top_up_botz');
-const db = client.db();
+const dbName = process.env.DB_NAME || 'shopbot';
+const db = client.db(dbName);
 console.log(`Bot Session Store using DB: ${db.databaseName}`);
 
 // Ensure client is connected
@@ -587,16 +595,16 @@ bot.hears('📊 Dashboard', isAdmin, async (ctx) => {
             topProductsTxt += `${i+1}. ${p._index.game} (${p._index.amount}) — ${p.count} keys\n`;
         });
 
-        const txt = `📊 **Admin Dashboard**\n\n` +
-                    `👥 **Total Users:** ${totalUsers}\n` +
-                    `📦 **Total Orders:** ${totalOrders}\n` +
-                    `⏳ **Pending (Unpaid):** ${pendingOrders}\n` +
-                    `💳 **Paid (To Process):** ${paidOrders}\n` +
-                    `✅ **Completed:** ${completedOrdersCount}\n\n` +
-                    `💰 **Current Month Revenue:** ${monthlyRevenue.toLocaleString()} so'm\n\n` +
-                    `🔥 **Top Products:**\n${topProductsTxt || 'No orders yet.'}`;
+        const txt = `<b>📊 Admin Dashboard</b>\n\n` +
+                    `👥 <b>Total Users:</b> ${totalUsers}\n` +
+                    `📦 <b>Total Orders:</b> ${totalOrders}\n` +
+                    `⏳ <b>Pending (Unpaid):</b> ${pendingOrders}\n` +
+                    `💳 <b>Paid (To Process):</b> ${paidOrders}\n` +
+                    `✅ <b>Completed:</b> ${completedOrdersCount}\n\n` +
+                    `💰 <b>Current Month Revenue:</b> ${monthlyRevenue.toLocaleString()} so'm\n\n` +
+                    `🔥 <b>Top Products:</b>\n${topProductsTxt || 'No orders yet.'}`;
         
-        await ctx.replyWithMarkdown(txt);
+        await ctx.replyWithHTML(txt);
     } catch (err) {
         console.error(err);
         ctx.reply('Error fetching dashboard stats.');
@@ -625,25 +633,26 @@ bot.hears('📦 Pending Orders', isAdmin, async (ctx) => {
 
         for (const o of orders) {
             try {
-                let msg = `📦 **Order ID**: ${o.order_id}\n` +
-                          `🚦 **Status**: ${o.status.toUpperCase()}\n` +
-                          `🕹 **Game**: ${o.game}\n` +
-                          `🆔 **Player**: ${o.player_id}\n` +
-                          `💰 **Package**: ${o.amount}\n` +
-                          `💲 **Price**: ${o.price} so'm\n` +
-                          `👤 **User**: @${o.username || o.telegram_user_id}`;
+                // Fix: Sanitize content and use HTML for admin reviews to avoid Markdown parsing bugs
+                let msg = `📦 <b>Order ID</b>: <code>${o.order_id}</code>\n` +
+                          `🚦 <b>Status</b>: ${o.status.toUpperCase()}\n` +
+                          `🕹 <b>Game</b>: ${o.game}\n` +
+                          `🆔 <b>Player</b>: <code>${o.player_id}</code>\n` +
+                          `💰 <b>Package</b>: ${o.amount}\n` +
+                          `💲 <b>Price</b>: ${o.price}\n` +
+                          `👤 <b>User</b>: @${o.username || o.telegram_user_id}`;
                 
                 if (o.status === 'paid' && o.screenshot_file_id) {
                     await ctx.replyWithPhoto(o.screenshot_file_id, { 
                         caption: msg,
-                        parse_mode: 'Markdown',
+                        parse_mode: 'HTML',
                         ...Markup.inlineKeyboard([
                             [Markup.button.callback('✅ Complete', `approve_${o.order_id}`)],
                             [Markup.button.callback('❌ Reject', `reject_${o.order_id}`)]
                         ])
                     });
                 } else {
-                    await ctx.replyWithMarkdown(msg + "\n\n*(Waiting for screenshot)*");
+                    await ctx.reply(msg + "\n\n<i>(Waiting for screenshot)</i>", { parse_mode: 'HTML' });
                 }
             } catch (itemErr) {
                 console.error(`Error rendering order ${o.order_id}:`, itemErr);
@@ -664,7 +673,7 @@ bot.action(/approve_(.+)/, isAdmin, async (ctx) => {
         if (!order) return ctx.answerCbQuery('Order not found or already processed.', { show_alert: true });
         
         await ctx.answerCbQuery('Order Completed!');
-        await ctx.editMessageCaption(`✅ **ORDER COMPLETED**\n\nOrder ID: ${orderId}\nGame: ${order.game}\nPlayer: ${order.player_id}`, { parse_mode: 'Markdown' });
+        await ctx.editMessageCaption(`✅ <b>ORDER COMPLETED</b>\n\nOrder ID: <code>${orderId}</code>\nGame: ${order.game}\nPlayer: <code>${order.player_id}</code>`, { parse_mode: 'HTML' });
         
         // Notify user
         try {
@@ -687,7 +696,7 @@ bot.action(/reject_(.+)/, isAdmin, async (ctx) => {
         if (!order) return ctx.answerCbQuery('Order not found or already processed.', { show_alert: true });
         
         await ctx.answerCbQuery('Order Rejected!');
-        await ctx.editMessageCaption(`❌ **ORDER REJECTED**\n\nOrder ID: ${orderId}\nGame: ${order.game}\nPlayer: ${order.player_id}`, { parse_mode: 'Markdown' });
+        await ctx.editMessageCaption(`❌ <b>ORDER REJECTED</b>\n\nOrder ID: <code>${orderId}</code>\nGame: ${order.game}\nPlayer: <code>${order.player_id}</code>`, { parse_mode: 'HTML' });
         
         // Notify user
         try {
