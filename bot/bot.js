@@ -111,65 +111,109 @@ const topupStep1 = async (ctx) => {
 
     const buttons = [];
     for (let i = 0; i < products.length; i += 2) {
-        const row = [products[i]];
-        if (products[i+1]) row.push(products[i+1]);
+        const row = [Markup.button.callback(products[i], `game_${products[i]}`)];
+        if (products[i+1]) row.push(Markup.button.callback(products[i+1], `game_${products[i+1]}`));
         buttons.push(row);
     }
-    buttons.push([t(lang, 'btn_back_main')]);
+    buttons.push([Markup.button.callback(t(lang, 'btn_back_main'), 'back_main')]);
 
-    await ctx.reply(t(lang, 'select_game'), Markup.keyboard(buttons).resize().oneTime());
+    await ctx.reply(t(lang, 'select_game'), Markup.inlineKeyboard(buttons));
     return ctx.wizard.next();
 };
 
 const topupStep2 = async (ctx) => {
     const lang = ctx.userLang;
-    const text = ctx.message?.text;
     
-    if (text === t(lang, 'btn_cancel') || text === t(lang, 'btn_back_main') || text === '/cancel') {
-        await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
-        return ctx.scene.leave();
+    // Handle callback query for game selection
+    let game;
+    if (ctx.callbackQuery) {
+        await ctx.answerCbQuery();
+        if (ctx.callbackQuery.data === 'back_main') {
+            await ctx.deleteMessage().catch(() => {});
+            await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
+            return ctx.scene.leave();
+        }
+        if (ctx.callbackQuery.data.startsWith('game_')) {
+            game = ctx.callbackQuery.data.replace('game_', '');
+            await ctx.editMessageText(t(lang, 'ask_player_id', { game }).split('\n\n')[0] + " ✅").catch(() => {});
+        }
+    } else {
+        const text = ctx.message?.text;
+        if (text === t(lang, 'btn_cancel') || text === t(lang, 'btn_back_main') || text === '/cancel') {
+            await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
+            return ctx.scene.leave();
+        }
+        // If they typed it manually
+        const gameExists = await Product.exists({ game: text, isActive: true });
+        if (gameExists) {
+            game = text;
+        } else {
+            await ctx.reply(t(lang, 'invalid_game'));
+            return;
+        }
     }
 
-    const gameExists = await Product.exists({ game: text, isActive: true });
-    if (!gameExists) {
-        await ctx.reply(t(lang, 'invalid_game'));
-        return;
-    }
-    ctx.wizard.state.order.game = text;
+    ctx.wizard.state.order.game = game;
 
-    const options = await Product.find({ game: text, isActive: true }).sort({ price: 1 });
+    const options = await Product.find({ game: game, isActive: true }).sort({ price: 1 });
     if (options.length === 0) {
         await ctx.reply(t(lang, 'no_packages'), Markup.keyboard(getMainMenu(lang)).resize());
         return ctx.scene.leave();
     }
 
-    const buttons = options.map(opt => [`${opt.package} - ${opt.price} so'm`]);
-    buttons.push([t(lang, 'btn_back'), t(lang, 'btn_back_main')]);
+    const buttons = options.map(opt => [Markup.button.callback(`${opt.package} - ${opt.price} so'm`, `pkg_${opt._id}`)]);
+    buttons.push([Markup.button.callback(t(lang, 'btn_back'), 'back_step0'), Markup.button.callback(t(lang, 'btn_back_main'), 'back_main')]);
 
-    await ctx.reply(t(lang, 'ask_amount'), Markup.keyboard(buttons).resize().oneTime());
+    await ctx.reply(t(lang, 'ask_amount'), Markup.inlineKeyboard(buttons));
     return ctx.wizard.next();
 };
 
 const topupStep3 = async (ctx) => {
     const lang = ctx.userLang;
-    const text = ctx.message?.text;
     
-    if (text === t(lang, 'btn_back_main') || text === '/cancel') {
-        await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
-        return ctx.scene.leave();
+    let packageInfo;
+    if (ctx.callbackQuery) {
+        await ctx.answerCbQuery();
+        const data = ctx.callbackQuery.data;
+        if (data === 'back_main' || data === 'cancel') {
+            await ctx.deleteMessage().catch(() => {});
+            await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
+            return ctx.scene.leave();
+        }
+        if (data === 'back_step0') {
+            await ctx.deleteMessage().catch(() => {});
+            ctx.wizard.selectStep(0);
+            return topupStep1(ctx);
+        }
+        if (data.startsWith('pkg_')) {
+            const pkgId = data.replace('pkg_', '');
+            const product = await Product.findById(pkgId);
+            if (product) {
+                packageInfo = `${product.package} - ${product.price} so'm`;
+                await ctx.editMessageText(t(lang, 'ask_amount') + ` ${product.package} ✅`).catch(() => {});
+            }
+        }
+    } else {
+        const text = ctx.message?.text;
+        if (text === t(lang, 'btn_back_main') || text === '/cancel') {
+            await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
+            return ctx.scene.leave();
+        }
+        if (text === t(lang, 'btn_back')) {
+            ctx.wizard.selectStep(0);
+            return topupStep1(ctx);
+        }
+        if (text && text.includes(' - ')) {
+            packageInfo = text;
+        }
     }
 
-    if (text === t(lang, 'btn_back')) {
-        ctx.wizard.selectStep(0);
-        return topupStep1(ctx);
-    }
-
-    if (!text || !text.includes(' - ')) {
+    if (!packageInfo) {
         return ctx.reply(t(lang, 'invalid_game')); // Packages should be from buttons
     }
 
-    ctx.wizard.state.order.amount_price = text;
-    const [amount, price] = text.split(' - ');
+    ctx.wizard.state.order.amount_price = packageInfo;
+    const [amount, price] = packageInfo.split(' - ');
     ctx.wizard.state.order.amount = amount;
     ctx.wizard.state.order.price = price;
 
@@ -189,11 +233,11 @@ const topupStep4 = async (ctx) => {
     if (text === t(lang, 'btn_back')) {
         const game = ctx.wizard.state.order.game;
         const options = await Product.find({ game: game, isActive: true }).sort({ price: 1 });
-        const buttons = options.map(opt => [`${opt.package} - ${opt.price} so'm`]);
-        buttons.push([t(lang, 'btn_back'), t(lang, 'btn_back_main')]);
+        const buttons = options.map(opt => [Markup.button.callback(`${opt.package} - ${opt.price} so'm`, `pkg_${opt._id}`)]);
+        buttons.push([Markup.button.callback(t(lang, 'btn_back'), 'back_step0'), Markup.button.callback(t(lang, 'btn_back_main'), 'back_main')]);
 
         ctx.wizard.selectStep(2); 
-        await ctx.reply(t(lang, 'ask_amount'), Markup.keyboard(buttons).resize().oneTime());
+        await ctx.reply(t(lang, 'ask_amount'), Markup.inlineKeyboard(buttons));
         return; 
     }
 
