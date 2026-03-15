@@ -49,7 +49,7 @@ const topupWizard = new Scenes.WizardScene(
             const gameExists = await Product.exists({ game: text, isActive: true });
             if (gameExists) {
                 ctx.wizard.selectStep(1);
-                return ctx.wizard.handler(ctx);
+                return ctx.wizard.steps[ctx.wizard.cursor](ctx);
             }
         }
 
@@ -117,7 +117,7 @@ const topupWizard = new Scenes.WizardScene(
         if (text === t(lang, 'btn_back')) {
             // Go back to step 1 (game selection)
             ctx.wizard.selectStep(0);
-            return ctx.wizard.handler(ctx);
+            return ctx.wizard.steps[ctx.wizard.cursor](ctx);
         }
 
         if (!text || !text.includes(' - ')) {
