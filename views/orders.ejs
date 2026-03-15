@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="uz">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Orders - Top-Up Bot</title>
+    <title><%= t('web_orders') %> - XOJA Shopbot</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -259,29 +259,29 @@
 <body>
 
 <div class="mobile-header">
-    <div style="font-weight: 700; font-size: 18px;">Admin Panel</div>
+    <div style="font-weight: 700; font-size: 18px;"><%= t('web_admin_title') %></div>
     <button class="menu-toggle" onclick="toggleMenu()">☰</button>
 </div>
 
 <div class="sidebar" id="sidebar">
-  <h2>Admin Panel</h2>
-  <a href="/dashboard">Dashboard</a>
-  <a class="active" href="/orders">Orders</a>
-  <a href="/products">Manage Products</a>
-  <a href="/logout">Logout</a>
+  <h2><%= t('web_admin_title') %></h2>
+  <a href="/dashboard"><%= t('web_dashboard') %></a>
+  <a class="active" href="/orders"><%= t('web_orders') %></a>
+  <a href="/products"><%= t('web_manage_products') %></a>
+  <a href="/logout"><%= t('web_logout') %></a>
 </div>
 
 <div class="content">
   <div class="header-actions">
-    <h2 class="page-title">Manage Orders</h2>
+    <h2 class="page-title"><%= t('web_manage_orders') %></h2>
     <div class="filter-container">
-        <label for="filter" style="font-size: 14px; font-weight: 500; color: var(--text-muted);">Filter Status:</label>
+        <label for="filter" style="font-size: 14px; font-weight: 500; color: var(--text-muted);"><%= t('web_filter_status') %></label>
         <select id="filter" class="filter-select" onchange="window.location.href='/orders?status='+this.value">
-            <option value="all" <%= currentFilter === 'all' ? 'selected' : '' %>>All Orders</option>
-            <option value="pending" <%= currentFilter === 'pending' ? 'selected' : '' %>>Waiting for User</option>
-            <option value="paid" <%= currentFilter === 'paid' ? 'selected' : '' %>>To Be Processed (Paid)</option>
-            <option value="completed" <%= currentFilter === 'completed' ? 'selected' : '' %>>Completed</option>
-            <option value="rejected" <%= currentFilter === 'rejected' ? 'selected' : '' %>>Rejected</option>
+            <option value="all" <%= currentFilter === 'all' ? 'selected' : '' %>><%= t('web_all_orders') %></option>
+            <option value="pending" <%= currentFilter === 'pending' ? 'selected' : '' %>><%= t('web_waiting_user') %></option>
+            <option value="paid" <%= currentFilter === 'paid' ? 'selected' : '' %>><%= t('web_to_be_processed') %></option>
+            <option value="completed" <%= currentFilter === 'completed' ? 'selected' : '' %>><%= t('web_completed') %></option>
+            <option value="rejected" <%= currentFilter === 'rejected' ? 'selected' : '' %>><%= t('web_rejected') %></option>
         </select>
     </div>
   </div>
@@ -291,13 +291,13 @@
       <table>
         <thead>
             <tr>
-                <th>Order ID</th>
-                <th>Customer</th>
-                <th>Order Details</th>
-                <th>Price</th>
-                <th>Date & Time</th>
-                <th>Status</th>
-                <th style="text-align: right;">Actions</th>
+                <th><%= t('web_order_id') %></th>
+                <th><%= t('web_customer') %></th>
+                <th><%= t('web_order_details') %></th>
+                <th><%= t('web_price') %></th>
+                <th><%= t('web_date_time') %></th>
+                <th><%= t('web_status') %></th>
+                <th style="text-align: right;"><%= t('web_actions') %></th>
             </tr>
         </thead>
       <tbody>

@@ -70,7 +70,7 @@ exports.getDashboard = async (req, res) => {
         });
 
         chartData.push({
-            date: d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+            date: d.toLocaleDateString('uz-UZ', { day: 'numeric', month: 'short' }),
             orders: dayOrdersCount,
             revenue: dayRevenue
         });
@@ -133,14 +133,14 @@ exports.updateOrderStatus = async (req, res) => {
     }
     
     // We send a success response indicating UI update. 
-    // The Telegram bot will handle sending messages to users separately when admin uses bot,
-    // OR we trigger bot message here if needed. 
-    // If bot instance is available globally via app.locals, we can do it:
+    const { t } = require('../bot/i18n');
+    const lang = req.app.locals.lang || 'uz';
+
     if (status === 'completed' && req.app.locals.bot) {
       try {
         await req.app.locals.bot.telegram.sendMessage(
           order.telegram_user_id,
-          `✅ Your top-up order (ID: ${order.order_id}) has been completed!`
+          t(lang, 'order_completed', { orderId: order.order_id })
         );
       } catch (err) {
         console.error('Failed to notify user via Telegram:', err);
@@ -149,7 +149,7 @@ exports.updateOrderStatus = async (req, res) => {
       try {
         await req.app.locals.bot.telegram.sendMessage(
           order.telegram_user_id,
-          `❌ Your top-up order (ID: ${order.order_id}) has been rejected. Please contact admin.`
+          t(lang, 'order_rejected', { orderId: order.order_id })
         );
       } catch (err) {
         console.error('Failed to notify user via Telegram:', err);
@@ -160,7 +160,8 @@ exports.updateOrderStatus = async (req, res) => {
 
   } catch (error) {
     console.error(error);
-    res.status(500).send('Server Error');
+    const { t } = require('../bot/i18n');
+    res.status(500).send(t(req.app.locals.lang || 'uz', 'web_server_error'));
   }
 };
 

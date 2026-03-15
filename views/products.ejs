@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="uz">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Products - Top-Up Bot</title>
+    <title><%= t('web_manage_products') %> - XOJA Shopbot</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -227,53 +227,53 @@
 <body>
 
 <div class="mobile-header">
-    <div style="font-weight: 700; font-size: 18px;">Admin Panel</div>
+    <div style="font-weight: 700; font-size: 18px;"><%= t('web_admin_title') %></div>
     <button class="menu-toggle" onclick="toggleMenu()">☰</button>
 </div>
 
 <div class="sidebar" id="sidebar">
-  <h2>Admin Panel</h2>
-  <a href="/dashboard">Dashboard</a>
-  <a href="/orders">Orders</a>
-  <a class="active" href="/products">Manage Products</a>
-  <a href="/logout">Logout</a>
+  <h2><%= t('web_admin_title') %></h2>
+  <a href="/dashboard"><%= t('web_dashboard') %></a>
+  <a href="/orders"><%= t('web_orders') %></a>
+  <a class="active" href="/products"><%= t('web_manage_products') %></a>
+  <a href="/logout"><%= t('web_logout') %></a>
 </div>
 
 <div class="content">
-  <h2 class="page-title">Manage Products & Games</h2>
+  <h2 class="page-title"><%= t('web_manage_products_games') %></h2>
   
   <div class="card">
-    <h3>Add New Product Package</h3>
+    <h3><%= t('web_add_new_pkg') %></h3>
     <form action="/products/add" method="POST" style="max-width: 500px;">
         <div class="form-group">
-            <label>Game Name (e.g., PUBG Mobile):</label>
+            <label><%= t('web_game_name_eg') %></label>
             <input type="text" name="game" placeholder="Enter game name..." required>
         </div>
         <div class="form-group">
-            <label>Package details (e.g., 60 UC - 1$):</label>
+            <label><%= t('web_pkg_details_eg') %></label>
             <input type="text" name="package" placeholder="Enter package details..." required>
         </div>
         <div class="form-group">
-            <label>Price (UZS):</label>
+            <label><%= t('web_price_uzs') %></label>
             <input type="number" step="1" name="price" placeholder="0" required>
         </div>
-        <button type="submit" class="btn">Add Product</button>
+        <button type="submit" class="btn"><%= t('web_add_product') %></button>
     </form>
   </div>
 
   <div class="card" style="padding: 0; overflow: hidden;">
     <div style="padding: 30px 30px 10px 30px;">
-        <h3>Current Products</h3>
+        <h3><%= t('web_current_products') %></h3>
     </div>
     <% if (products && products.length > 0) { %>
       <div class="table-responsive">
         <table>
           <thead>
             <tr>
-              <th>Game</th>
-              <th>Package</th>
-              <th>Price</th>
-              <th style="text-align: right;">Action</th>
+              <th><%= t('web_game') %></th>
+              <th><%= t('web_package') %></th>
+              <th><%= t('web_price') %></th>
+              <th style="text-align: right;"><%= t('web_action') %></th>
             </tr>
           </thead>
           <tbody>
@@ -283,8 +283,8 @@
                 <td><%= p.package %></td>
                 <td class="price-tag"><%= p.price.toLocaleString() %> UZS</td>
                 <td style="text-align: right;">
-                  <form action="/products/<%= p._id %>/delete" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this product?');">
-                    <button type="submit" class="btn btn-danger">Delete</button>
+                  <form action="/products/<%= p._id %>/delete" method="POST" style="display:inline;" onsubmit="return confirm('<%= t('web_confirm_delete') %>');">
+                    <button type="submit" class="btn btn-danger"><%= t('web_delete') %></button>
                   </form>
                 </td>
               </tr>
@@ -294,7 +294,7 @@
       </div>
     <% } else { %>
       <div style="padding: 0 30px 30px 30px;">
-          <p style="color: var(--text-muted);">No products found. Add some above.</p>
+          <p style="color: var(--text-muted);"><%= t('web_no_products_found') %></p>
       </div>
     <% } %>
   </div>

@@ -16,7 +16,10 @@ exports.postLogin = async (req, res) => {
     req.session.isAdmin = true;
     res.redirect('/dashboard');
   } else {
-    res.render('login', { error: 'Invalid credentials' });
+    // In authController, we don't have res.locals.t yet as it's a redirect/render from post.
+    // But we can import t directly or just pass the Uzbek string for now.
+    const { t } = require('../bot/i18n');
+    res.render('login', { error: t('uz', 'web_invalid_creds') });
   }
 };
 

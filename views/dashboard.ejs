@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="uz">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Top-Up Bot</title>
+    <title><%= t('web_dashboard') %> - XOJA Shopbot</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -195,70 +195,70 @@
 <body>
 
 <div class="mobile-header">
-    <div style="font-weight: 700; font-size: 18px;">Admin Panel</div>
+    <div style="font-weight: 700; font-size: 18px;"><%= t('web_admin_title') %></div>
     <button class="menu-toggle" onclick="toggleMenu()">☰</button>
 </div>
 
 <div class="sidebar" id="sidebar">
-  <h2>Admin Panel</h2>
-  <a class="active" href="/dashboard"><span>Dashboard</span></a>
-  <a href="/orders"><span>Orders</span></a>
-  <a href="/products"><span>Manage Products</span></a>
-  <a href="/logout"><span>Logout</span></a>
+  <h2><%= t('web_admin_title') %></h2>
+  <a class="active" href="/dashboard"><span><%= t('web_dashboard') %></span></a>
+  <a href="/orders"><span><%= t('web_orders') %></span></a>
+  <a href="/products"><span><%= t('web_manage_products') %></span></a>
+  <a href="/logout"><span><%= t('web_logout') %></span></a>
 </div>
 
 <div class="content">
-  <h2 class="page-title">Dashboard Overview</h2>
+  <h2 class="page-title"><%= t('web_dashboard_overview') %></h2>
   
-  <div class="section-title">Lifetime Statistics</div>
+  <div class="section-title"><%= t('web_lifetime_stats') %></div>
   <div class="card-container">
     <div class="card">
-        <h3>Total Orders</h3>
+        <h3><%= t('web_total_orders') %></h3>
         <p><%= totalOrders %></p>
     </div>
     <div class="card">
-        <h3>Paid Orders</h3>
+        <h3><%= t('web_paid_orders') %></h3>
         <p style="color: var(--accent-blue);"><%= paidOrders %></p>
     </div>
     <div class="card">
-        <h3>Completed Orders</h3>
+        <h3><%= t('web_completed_orders') %></h3>
         <p style="color: var(--accent-green);"><%= completedOrders %></p>
     </div>
     <div class="card">
-        <h3>Total Revenue</h3>
+        <h3><%= t('web_total_revenue') %></h3>
         <p style="color: var(--accent-blue);"><%= totalRevenue.toLocaleString() %> UZS</p>
     </div>
     <div class="card">
-        <h3>Total Users</h3>
+        <h3><%= t('web_total_users') %></h3>
         <p style="color: var(--accent-purple);"><%= totalUsers %></p>
     </div>
   </div>
 
-  <div class="section-title">Current Performance</div>
+  <div class="section-title"><%= t('web_current_perf') %></div>
   <div class="card-container">
     <div class="card">
-        <h3>Today's Orders</h3>
+        <h3><%= t('web_today_orders') %></h3>
         <p><%= todayOrders %></p>
     </div>
     <div class="card">
-        <h3>Today's Revenue</h3>
+        <h3><%= t('web_today_revenue') %></h3>
         <p style="color: var(--accent-green);"><%= todayRevenue.toLocaleString() %> UZS</p>
     </div>
     <div class="card">
-        <h3>This Month Revenue</h3>
+        <h3><%= t('web_month_revenue') %></h3>
         <p style="color: var(--accent-orange);"><%= monthlyRevenue.toLocaleString() %> UZS</p>
     </div>
   </div>
 
   <div class="grid-2">
     <div>
-        <div class="section-title">Top Selling Products</div>
+        <div class="section-title"><%= t('web_top_selling') %></div>
         <div class="card" style="padding: 0; overflow: hidden;">
             <table style="width: 100%; border-collapse: collapse;">
                 <thead style="background: #f1f5f9;">
                     <tr>
-                        <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600; color: var(--text-muted);">PRODUCT</th>
-                        <th style="padding: 12px 16px; text-align: right; font-size: 12px; font-weight: 600; color: var(--text-muted);">SALES</th>
+                        <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600; color: var(--text-muted);"><%= t('web_product') %></th>
+                        <th style="padding: 12px 16px; text-align: right; font-size: 12px; font-weight: 600; color: var(--text-muted);"><%= t('web_sales') %></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -273,14 +273,14 @@
         </div>
     </div>
     <div>
-        <div class="section-title">Activity Trends</div>
+        <div class="section-title"><%= t('web_activity_trends') %></div>
         <div class="card">
             <canvas id="ordersChart" height="200"></canvas>
         </div>
     </div>
   </div>
 
-  <div class="section-title">Revenue Trends</div>
+  <div class="section-title"><%= t('web_revenue_trends') %></div>
   <div class="card" style="margin-bottom: 40px;">
     <canvas id="revenueChart" height="80"></canvas>
   </div>
@@ -299,7 +299,7 @@
         data: {
             labels: labels,
             datasets: [{
-                label: 'Orders',
+                label: '<%= t('web_chart_orders') %>',
                 data: ordersData,
                 borderColor: '#10b981',
                 backgroundColor: 'rgba(16, 185, 129, 0.1)',
@@ -323,7 +323,7 @@
         data: {
             labels: labels,
             datasets: [{
-                label: 'Revenue (UZS)',
+                label: '<%= t('web_chart_revenue') %>',
                 data: revenueData,
                 backgroundColor: '#3b82f6',
                 borderRadius: 4

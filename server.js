@@ -8,8 +8,18 @@ const path = require('path');
 const connectDB = require('./config/db');
 const adminRoutes = require('./routes/adminRoutes');
 const bot = require('./bot/bot');
+const { t } = require('./bot/i18n');
 
 const app = express();
+
+// Web Panel Language (Default to Uzbek)
+app.locals.lang = 'uz';
+
+// Middleware to provide t function to all views
+app.use((req, res, next) => {
+    res.locals.t = (key, params) => t(app.locals.lang, key, params);
+    next();
+});
 
 // Diagnostic logging for Fly.io environment
 console.log('--- Environment Diagnostics ---');
