@@ -100,7 +100,7 @@ exports.getOrders = async (req, res) => {
   try {
     const statusFilter = req.query.status;
     let query = {};
-    if (statusFilter && ['pending', 'completed', 'rejected'].includes(statusFilter)) {
+    if (statusFilter && ['pending', 'paid', 'completed', 'rejected'].includes(statusFilter)) {
       query.status = statusFilter;
     }
 
@@ -118,7 +118,7 @@ exports.updateOrderStatus = async (req, res) => {
     const { orderId } = req.params;
     const { status } = req.body;
 
-    if (!['pending', 'completed', 'rejected'].includes(status)) {
+    if (!['pending', 'paid', 'completed', 'rejected'].includes(status)) {
       return res.status(400).json({ success: false, message: 'Invalid status' });
     }
 

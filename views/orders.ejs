@@ -149,6 +149,7 @@
         }
 
         .status-pending { background-color: #fef3c7; color: #92400e; }
+        .status-paid { background-color: #dbeafe; color: #1e40af; }
         .status-completed { background-color: #dcfce7; color: #166534; }
         .status-rejected { background-color: #fee2e2; color: #991b1b; }
 
@@ -217,7 +218,8 @@
         <label for="filter" style="font-size: 14px; font-weight: 500; color: var(--text-muted);">Filter Status:</label>
         <select id="filter" class="filter-select" onchange="window.location.href='/orders?status='+this.value">
             <option value="all" <%= currentFilter === 'all' ? 'selected' : '' %>>All Orders</option>
-            <option value="pending" <%= currentFilter === 'pending' ? 'selected' : '' %>>Pending</option>
+            <option value="pending" <%= currentFilter === 'pending' ? 'selected' : '' %>>Waiting for User</option>
+            <option value="paid" <%= currentFilter === 'paid' ? 'selected' : '' %>>To Be Processed (Paid)</option>
             <option value="completed" <%= currentFilter === 'completed' ? 'selected' : '' %>>Completed</option>
             <option value="rejected" <%= currentFilter === 'rejected' ? 'selected' : '' %>>Rejected</option>
         </select>
@@ -263,7 +265,7 @@
                       <td style="text-align: right;">
                           <div class="actions-cell" style="justify-content: flex-end;">
                               <a href="/orders/<%= order.order_id %>/screenshot" target="_blank" class="btn btn-view" title="View Payment Screenshot">View Proof</a>
-                              <% if (order.status === 'pending') { %>
+                              <% if (order.status === 'pending' || order.status === 'paid') { %>
                                   <form action="/orders/<%= order.order_id %>/status" method="POST">
                                       <input type="hidden" name="status" value="completed">
                                       <button type="submit" class="btn btn-complete">Approve</button>

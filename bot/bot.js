@@ -42,6 +42,17 @@ const topupWizard = new Scenes.WizardScene(
     // Step 1: Select Game
     async (ctx) => {
         const lang = ctx.userLang;
+        const text = ctx.message?.text;
+
+        // FALLBACK: If we receive a game name here (due to session lag), move to next step
+        if (text && text !== t(lang, 'btn_topup') && !['/start', '/topup'].includes(text)) {
+            const gameExists = await Product.exists({ game: text, isActive: true });
+            if (gameExists) {
+                ctx.wizard.selectStep(1);
+                return ctx.wizard.handler(ctx);
+            }
+        }
+
         ctx.wizard.state.order = {};
         const products = await Product.find({ isActive: true }).distinct('game');
         if (products.length === 0) {
@@ -579,26 +590,39 @@ bot.action('admin_add_product', isAdmin, async (ctx) => {
 // Pending Orders Interactive
 bot.hears('📦 Pending Orders', isAdmin, async (ctx) => {
     try {
-        const orders = await Order.find({ status: 'paid' }).sort({ created_at: 1 });
+        // Show BOTH paid (to process) and pending (unpaid) to give admin full view
+        const orders = await Order.find({ status: { $in: ['paid', 'pending'] } }).sort({ created_at: -1 }).limit(20);
+        
         if (orders.length === 0) {
-            return ctx.reply('✅ There are no paid orders waiting for processing!', Markup.keyboard(getAdminMenu(ctx.userLang)).resize());
+            return ctx.reply('✅ There are no pending or paid orders!', Markup.keyboard(getAdminMenu(ctx.userLang)).resize());
         }
         
-        await ctx.reply(`Found ${orders.length} orders to process:`, Markup.keyboard(getAdminMenu(ctx.userLang)).resize());
+        await ctx.reply(`Found ${orders.length} recent pending/paid orders:`, Markup.keyboard(getAdminMenu(ctx.userLang)).resize());
 
         for (const o of orders) {
-            let msg = `📦 **Order ID**: ${o.order_id}\n🕹 **Game**: ${o.game}\n🆔 **Player**: ${o.player_id}\n💰 **Package**: ${o.amount}\n💲 **Price**: ${o.price} so'm\n👤 **User**: @${o.username || o.telegram_user_id}`;
+            let msg = `📦 **Order ID**: ${o.order_id}\n` +
+                      `🚦 **Status**: ${o.status.toUpperCase()}\n` +
+                      `🕹 **Game**: ${o.game}\n` +
+                      `🆔 **Player**: ${o.player_id}\n` +
+                      `💰 **Package**: ${o.amount}\n` +
+                      `💲 **Price**: ${o.price} so'm\n` +
+                      `👤 **User**: @${o.username || o.telegram_user_id}`;
             
-            await ctx.replyWithPhoto(o.screenshot_file_id, { 
-                caption: msg,
-                parse_mode: 'Markdown',
-                ...Markup.inlineKeyboard([
-                    [Markup.button.callback('✅ Complete', `approve_${o.order_id}`)],
-                    [Markup.button.callback('❌ Reject', `reject_${o.order_id}`)]
-                ])
-            });
+            if (o.status === 'paid' && o.screenshot_file_id) {
+                await ctx.replyWithPhoto(o.screenshot_file_id, { 
+                    caption: msg,
+                    parse_mode: 'Markdown',
+                    ...Markup.inlineKeyboard([
+                        [Markup.button.callback('✅ Complete', `approve_${o.order_id}`)],
+                        [Markup.button.callback('❌ Reject', `reject_${o.order_id}`)]
+                    ])
+                });
+            } else {
+                await ctx.replyWithMarkdown(msg + "\n\n*(Waiting for screenshot)*");
+            }
         }
     } catch (err) {
+         console.error(err);
          ctx.reply('Error fetching pending orders.');
     }
 });
