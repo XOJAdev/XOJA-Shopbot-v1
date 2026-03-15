@@ -89,7 +89,17 @@ const notifyAdmins = async (ctx, order, photoFileId = null) => {
     }
 };
 
+bot.on('my_chat_member', (ctx) => {
+    // Just log and ignore to prevent this update from being handled by Wizard steps and causing 403 errors
+    const status = ctx.myChatMember.new_chat_member.status;
+    console.log(`Bot status for user ${ctx.from.id} updated to: ${status}`);
+    return;
+});
+
 const topupStep1 = async (ctx) => {
+    // Only process text messages or specifically /topup command
+    if (!ctx.message?.text) return;
+    
     const lang = ctx.userLang;
     const text = ctx.message?.text;
 
@@ -239,8 +249,10 @@ const topupStep4 = async (ctx) => {
 };
 
 const topupStep5 = async (ctx) => {
-    const lang = ctx.userLang;
+    // Only process messages (expecting photo or text commands)
+    if (!ctx.message) return;
     
+    const lang = ctx.userLang;
     const text = ctx.message?.text;
     
     if (text === t(lang, 'btn_back_main') || text === '/cancel') {
