@@ -97,6 +97,34 @@ bot.on('my_chat_member', (ctx) => {
     return;
 });
 
+const handleStart = async (ctx) => {
+    console.log("Received /start command from user:", ctx.from.id);
+    try {
+        // Find existing user
+        const user = await User.findOne({ telegram_user_id: ctx.from.id });
+        console.log("User lookup result:", user ? "Found" : "Not Found");
+        
+        // If user already has a language selected, just greet them
+        if (user && user.language_code && ['en', 'ru', 'uz'].includes(user.language_code)) {
+            await ctx.reply(
+                t(user.language_code, 'welcome'),
+                Markup.keyboard(getMainMenu(user.language_code)).resize()
+            );
+        } else {
+            // Ask for language selection inline
+            await ctx.reply('🌐 Please select your language / Пожалуйста, выберите язык / Iltimos, tilni tanlang:',
+                Markup.inlineKeyboard([
+                    Markup.button.callback('🇺🇿 O\'zbekcha', 'lang_uz'),
+                    Markup.button.callback('🇷🇺 Русский', 'lang_ru'),
+                    Markup.button.callback('🇬🇧 English', 'lang_en')
+                ])
+            );
+        }
+    } catch (err) {
+        console.error("Start Command Error:", err);
+    }
+};
+
 const topupStep1 = async (ctx) => {
     const lang = ctx.userLang;
     const text = ctx.message?.text;
@@ -145,7 +173,7 @@ const topupStep2 = async (ctx) => {
     if (text === t(lang, 'btn_cancel') || text === t(lang, 'btn_back_main') || text === '/cancel' || text === '/start') {
         if (text === '/start') {
             await ctx.scene.leave();
-            return ctx.start(); // Re-trigger greeting
+            return handleStart(ctx); // Re-trigger greeting
         }
         await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
         return ctx.scene.leave();
@@ -179,7 +207,7 @@ const topupStep3 = async (ctx) => {
     if (text === t(lang, 'btn_back_main') || text === '/cancel' || text === '/start') {
         if (text === '/start') {
             await ctx.scene.leave();
-            return ctx.start();
+            return handleStart(ctx);
         }
         await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
         return ctx.scene.leave();
@@ -211,7 +239,7 @@ const topupStep4 = async (ctx) => {
     if (text === t(lang, 'btn_back_main') || text === '/cancel' || text === '/start') {
         if (text === '/start') {
             await ctx.scene.leave();
-            return ctx.start();
+            return handleStart(ctx);
         }
         await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
         return ctx.scene.leave();
@@ -276,7 +304,7 @@ const topupStep5 = async (ctx) => {
     if (text === t(lang, 'btn_back_main') || text === '/cancel' || text === '/start') {
         if (text === '/start') {
             await ctx.scene.leave();
-            return ctx.start();
+            return handleStart(ctx);
         }
         await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
         return ctx.scene.leave();
@@ -401,33 +429,7 @@ bot.use(mdbSession(db, { collectionName: 'telegraf-sessions' }));
 bot.use(stage.middleware());
 
 // --- User Commands ---
-bot.start(async (ctx) => {
-    console.log("Received /start command from user:", ctx.from.id);
-    try {
-        // Find existing user
-        const user = await User.findOne({ telegram_user_id: ctx.from.id });
-        console.log("User lookup result:", user ? "Found" : "Not Found");
-        
-        // If user already has a language selected, just greet them
-        if (user && user.language_code && ['en', 'ru', 'uz'].includes(user.language_code)) {
-            await ctx.reply(
-                t(user.language_code, 'welcome'),
-                Markup.keyboard(getMainMenu(user.language_code)).resize()
-            );
-        } else {
-            // Ask for language selection inline
-            await ctx.reply('🌐 Please select your language / Пожалуйста, выберите язык / Iltimos, tilni tanlang:',
-                Markup.inlineKeyboard([
-                    Markup.button.callback('🇺🇿 O\'zbekcha', 'lang_uz'),
-                    Markup.button.callback('🇷🇺 Русский', 'lang_ru'),
-                    Markup.button.callback('🇬🇧 English', 'lang_en')
-                ])
-            );
-        }
-    } catch (err) {
-        console.error("Start Command Error:", err);
-    }
-});
+bot.start(handleStart);
 
 // Language Select Actions
 const handleLangSelection = async (ctx, langStr) => {
