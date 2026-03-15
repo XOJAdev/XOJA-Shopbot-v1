@@ -2,6 +2,8 @@ const { Telegraf, Scenes, session, Markup } = require('telegraf');
 const User = require('../models/User');
 const Order = require('../models/Order');
 const crypto = require('crypto');
+const { MongoClient } = require('mongodb');
+const { session: mdbSession } = require('telegraf-session-mongodb');
 
 const Product = require('../models/Product');
 
@@ -162,6 +164,8 @@ const topupWizard = new Scenes.WizardScene(
             });
         } catch (err) {
             console.error("Error creating pending order:", err);
+            await ctx.reply(t(lang, 'order_error'));
+            return ctx.scene.leave();
         }
 
         await ctx.reply(t(lang, 'order_summary', { 
@@ -195,7 +199,13 @@ const topupWizard = new Scenes.WizardScene(
         }
 
         const photoFileId = ctx.message.photo[ctx.message.photo.length - 1].file_id;
-        const orderId = ctx.wizard.state.order.orderId;
+        const orderId = ctx.wizard.state.order?.orderId;
+
+        if (!orderId) {
+            console.error("Session data lost! Order ID missing for user:", ctx.from.id);
+            await ctx.reply(t(lang, 'order_error'), Markup.keyboard(getMainMenu(lang)).resize());
+            return ctx.scene.leave();
+        }
 
         try {
             await Order.findOneAndUpdate({ order_id: orderId }, {
@@ -301,7 +311,15 @@ const addProductWizard = new Scenes.WizardScene(
 
 const stage = new Scenes.Stage([topupWizard, addProductWizard]);
 
-bot.use(session());
+// Persistent Session Setup
+const client = new MongoClient(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/telegram_top_up_botz');
+const db = client.db();
+const sessionCollection = db.collection('telegraf-sessions');
+
+// Ensure client is connected
+client.connect().catch(err => console.error('MongoDB Session Client Connect Error:', err));
+
+bot.use(mdbSession(sessionCollection));
 bot.use(stage.middleware());
 
 // --- User Commands ---
