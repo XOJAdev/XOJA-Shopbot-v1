@@ -90,25 +90,31 @@ const notifyAdmins = async (ctx, order, photoFileId = null) => {
 };
 
 bot.on('my_chat_member', (ctx) => {
-    // Just log and ignore to prevent this update from being handled by Wizard steps and causing 403 errors
     const status = ctx.myChatMember.new_chat_member.status;
-    console.log(`Bot status for user ${ctx.from.id} updated to: ${status}`);
+    const user = ctx.from.id;
+    const username = ctx.from.username || 'N/A';
+    console.log(`[STATUS] User ${user} (@${username}) status changed to: ${status}`);
     return;
 });
 
 const topupStep1 = async (ctx) => {
-    // Only process text messages or specifically /topup command
-    if (!ctx.message?.text) return;
-    
     const lang = ctx.userLang;
     const text = ctx.message?.text;
+    if (!text) return;
 
-    // FALLBACK: If we receive a game name here (due to session lag/duplicate button sync), move to next step
-    if (text && text !== t(lang, 'btn_topup') && !['/start', '/topup'].includes(text)) {
+    // If /start or /topup is sent while already at Step 1, just continue showing the games
+    // No need to "re-enter" or exit unless we want to let global handlers take over.
+    // However, we want to ensure it doesn't enter FALLBACK logic.
+    if (['/start', '/topup'].includes(text)) {
+        // Just proceed to show products
+    } else if (text !== t(lang, 'btn_topup')) {
+        // FALLBACK: If we receive a game name here (due to session lag/duplicate button sync), move to next step
         const gameExists = await Product.exists({ game: text, isActive: true });
         if (gameExists) {
+            ctx.wizard.state.order = {};
+            ctx.wizard.state.order.game = text;
             ctx.wizard.selectStep(1);
-            return topupStep2(ctx); // Direct function call is the safest way to re-trigger
+            return topupStep2(ctx); 
         }
     }
 
@@ -136,7 +142,11 @@ const topupStep2 = async (ctx) => {
     const text = ctx.message?.text;
     if (!text) return;
     
-    if (text === t(lang, 'btn_cancel') || text === t(lang, 'btn_back_main') || text === '/cancel') {
+    if (text === t(lang, 'btn_cancel') || text === t(lang, 'btn_back_main') || text === '/cancel' || text === '/start') {
+        if (text === '/start') {
+            await ctx.scene.leave();
+            return ctx.start(); // Re-trigger greeting
+        }
         await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
         return ctx.scene.leave();
     }
@@ -166,7 +176,11 @@ const topupStep3 = async (ctx) => {
     const text = ctx.message?.text;
     if (!text) return;
     
-    if (text === t(lang, 'btn_back_main') || text === '/cancel') {
+    if (text === t(lang, 'btn_back_main') || text === '/cancel' || text === '/start') {
+        if (text === '/start') {
+            await ctx.scene.leave();
+            return ctx.start();
+        }
         await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
         return ctx.scene.leave();
     }
@@ -194,7 +208,11 @@ const topupStep4 = async (ctx) => {
     const text = ctx.message?.text;
     if (!text) return;
     
-    if (text === t(lang, 'btn_back_main') || text === '/cancel') {
+    if (text === t(lang, 'btn_back_main') || text === '/cancel' || text === '/start') {
+        if (text === '/start') {
+            await ctx.scene.leave();
+            return ctx.start();
+        }
         await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
         return ctx.scene.leave();
     }
@@ -255,7 +273,11 @@ const topupStep5 = async (ctx) => {
     const lang = ctx.userLang;
     const text = ctx.message?.text;
     
-    if (text === t(lang, 'btn_back_main') || text === '/cancel') {
+    if (text === t(lang, 'btn_back_main') || text === '/cancel' || text === '/start') {
+        if (text === '/start') {
+            await ctx.scene.leave();
+            return ctx.start();
+        }
         await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
         return ctx.scene.leave();
     }
