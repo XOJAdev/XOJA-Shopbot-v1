@@ -64,11 +64,12 @@ const topupWizard = new Scenes.WizardScene(
     async (ctx) => {
         const lang = ctx.userLang;
         const text = ctx.message?.text;
+        
         if (text === t(lang, 'btn_cancel') || text === t(lang, 'btn_back_main') || text === '/cancel') {
             await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
             return ctx.scene.leave();
         }
-        
+
         const gameExists = await Product.exists({ game: text, isActive: true });
         if (!gameExists) {
             await ctx.reply(t(lang, 'invalid_game'));
@@ -85,7 +86,7 @@ const topupWizard = new Scenes.WizardScene(
 
         // format package labels like "60 UC - 1000 so'm"
         const buttons = options.map(opt => [`${opt.package} - ${opt.price} so'm`]);
-        buttons.push([t(lang, 'btn_back_main')]);
+        buttons.push([t(lang, 'btn_back'), t(lang, 'btn_back_main')]);
 
         await ctx.reply(t(lang, 'ask_amount'), Markup.keyboard(buttons).resize().oneTime());
         return ctx.wizard.next();
@@ -94,9 +95,20 @@ const topupWizard = new Scenes.WizardScene(
     async (ctx) => {
         const lang = ctx.userLang;
         const text = ctx.message?.text;
-        if (text === t(lang, 'btn_cancel') || text === t(lang, 'btn_back_main') || text === '/cancel') {
+        
+        if (text === t(lang, 'btn_back_main') || text === '/cancel') {
             await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
             return ctx.scene.leave();
+        }
+
+        if (text === t(lang, 'btn_back')) {
+            // Go back to step 1 (game selection)
+            ctx.wizard.selectStep(0);
+            return ctx.wizard.handler(ctx);
+        }
+
+        if (!text || !text.includes(' - ')) {
+            return ctx.reply(t(lang, 'invalid_game')); // Reuse invalid_game or make a new one if needed, but here packages should be selected from buttons
         }
 
         ctx.wizard.state.order.amount_price = text; // e.g. "60 UC - 1000 so'm"
@@ -104,16 +116,29 @@ const topupWizard = new Scenes.WizardScene(
         ctx.wizard.state.order.amount = amount;
         ctx.wizard.state.order.price = price;
 
-        await ctx.reply(t(lang, 'ask_player_id', { game: ctx.wizard.state.order.game }), Markup.keyboard([[t(lang, 'btn_back_main')]]).resize());
+        await ctx.reply(t(lang, 'ask_player_id', { game: ctx.wizard.state.order.game }), Markup.keyboard([[t(lang, 'btn_back'), t(lang, 'btn_back_main')]]).resize());
         return ctx.wizard.next();
     },
     // Step 4: Receive Player ID, Show Summary & Ask Screenshot
     async (ctx) => {
         const lang = ctx.userLang;
         const text = ctx.message?.text;
-        if (text === t(lang, 'btn_cancel') || text === t(lang, 'btn_back_main') || text === '/cancel') {
+        
+        if (text === t(lang, 'btn_back_main') || text === '/cancel') {
             await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
             return ctx.scene.leave();
+        }
+
+        if (text === t(lang, 'btn_back')) {
+            // Re-show packages
+            const game = ctx.wizard.state.order.game;
+            const options = await Product.find({ game: game, isActive: true }).sort({ price: 1 });
+            const buttons = options.map(opt => [`${opt.package} - ${opt.price} so'm`]);
+            buttons.push([t(lang, 'btn_back'), t(lang, 'btn_back_main')]);
+
+            ctx.wizard.selectStep(2); // Set cursor back to receive package step
+            await ctx.reply(t(lang, 'ask_amount'), Markup.keyboard(buttons).resize().oneTime());
+            return; 
         }
 
         if (!text) return ctx.reply(t(lang, 'provide_text'));
@@ -145,12 +170,25 @@ const topupWizard = new Scenes.WizardScene(
             amount: ctx.wizard.state.order.amount, 
             price: ctx.wizard.state.order.price,
             orderId
-        }), Markup.removeKeyboard());
+        }), Markup.keyboard([[t(lang, 'btn_back'), t(lang, 'btn_back_main')]]).resize());
         return ctx.wizard.next();
     },
     // Step 5: Receive Screenshot, Save Order
     async (ctx) => {
         const lang = ctx.userLang;
+        
+        if (ctx.message?.text === t(lang, 'btn_back_main') || ctx.message?.text === '/cancel') {
+            await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
+            return ctx.scene.leave();
+        }
+
+        if (ctx.message?.text === t(lang, 'btn_back')) {
+            // Re-ask player ID
+            ctx.wizard.selectStep(3); // Set cursor back to receive player ID step
+            await ctx.reply(t(lang, 'ask_player_id', { game: ctx.wizard.state.order.game }), Markup.keyboard([[t(lang, 'btn_back'), t(lang, 'btn_back_main')]]).resize());
+            return;
+        }
+
         if (!ctx.message?.photo) {
             await ctx.reply(t(lang, 'invalid_photo'));
             return;
@@ -218,23 +256,23 @@ const addProductWizard = new Scenes.WizardScene(
     'ADD_PRODUCT_WIZARD',
     async (ctx) => {
         ctx.wizard.state.product = {};
-        await ctx.reply('🕹 Which game are you adding this product for? (e.g. PUBG Mobile, Free Fire)\nOr type /cancel to abort.', Markup.removeKeyboard());
+        await ctx.reply('🕹 Which game are you adding this product for? (e.g. PUBG Mobile, Free Fire)\nOr click Cancel below.', Markup.keyboard([['❌ Cancel']]).resize());
         return ctx.wizard.next();
     },
     async (ctx) => {
-        if(ctx.message?.text === '/cancel') { ctx.reply('Cancelled.', Markup.keyboard(getAdminMenu()).resize()); return ctx.scene.leave(); }
+        if(ctx.message?.text === '/cancel' || ctx.message?.text === '❌ Cancel') { ctx.reply('Cancelled.', Markup.keyboard(getAdminMenu()).resize()); return ctx.scene.leave(); }
         ctx.wizard.state.product.game = ctx.message?.text;
-        await ctx.reply('📦 What is the package name/amount? (e.g. 60 UC, 100 Diamonds)\nOr type /cancel to abort.');
+        await ctx.reply('📦 What is the package name/amount? (e.g. 60 UC, 100 Diamonds)\nOr click Cancel below.', Markup.keyboard([['❌ Cancel']]).resize());
         return ctx.wizard.next();
     },
     async (ctx) => {
-        if(ctx.message?.text === '/cancel') { ctx.reply('Cancelled.', Markup.keyboard(getAdminMenu()).resize()); return ctx.scene.leave(); }
+        if(ctx.message?.text === '/cancel' || ctx.message?.text === '❌ Cancel') { ctx.reply('Cancelled.', Markup.keyboard(getAdminMenu()).resize()); return ctx.scene.leave(); }
         ctx.wizard.state.product.package = ctx.message?.text;
-        await ctx.reply('💲 What is the price in UZS (so\'m)? (Number only, e.g. 15000)\nOr type /cancel to abort.');
+        await ctx.reply('💲 What is the price in UZS (so\'m)? (Number only, e.g. 15000)\nOr click Cancel below.', Markup.keyboard([['❌ Cancel']]).resize());
         return ctx.wizard.next();
     },
     async (ctx) => {
-        if(ctx.message?.text === '/cancel') { ctx.reply('Cancelled.', Markup.keyboard(getAdminMenu()).resize()); return ctx.scene.leave(); }
+        if(ctx.message?.text === '/cancel' || ctx.message?.text === '❌ Cancel') { ctx.reply('Cancelled.', Markup.keyboard(getAdminMenu()).resize()); return ctx.scene.leave(); }
         
         const price = parseFloat(ctx.message?.text);
         if (isNaN(price)) {
