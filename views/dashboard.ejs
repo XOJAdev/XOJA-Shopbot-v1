@@ -36,6 +36,7 @@
             height: 100%; 
             overflow: auto; 
             transition: all 0.3s ease;
+            z-index: 1000;
         }
 
         .sidebar h2 {
@@ -67,9 +68,30 @@
             padding-left: 30px;
         }
 
+        .mobile-header {
+            display: none;
+            background: var(--sidebar-bg);
+            color: white;
+            padding: 15px 20px;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1001;
+        }
+
+        .menu-toggle {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
         .content { 
             margin-left: 250px; 
             padding: 40px; 
+            transition: all 0.3s ease;
         }
 
         h2.page-title {
@@ -148,16 +170,36 @@
         }
 
         @media (max-width: 768px) {
-            .sidebar { width: 70px; }
-            .sidebar h2, .sidebar a span { display: none; }
-            .content { margin-left: 70px; padding: 20px; }
-            .sidebar a { text-align: center; padding: 20px; }
+            .sidebar { 
+                left: -250px; 
+            }
+            .sidebar.active {
+                left: 0;
+            }
+            .content { 
+                margin-left: 0; 
+                padding: 20px; 
+            }
+            .mobile-header {
+                display: flex;
+            }
+            .card-container {
+                grid-template-columns: 1fr;
+            }
+            .card p {
+                font-size: 1.5rem;
+            }
         }
     </style>
 </head>
 <body>
 
-<div class="sidebar">
+<div class="mobile-header">
+    <div style="font-weight: 700; font-size: 18px;">Admin Panel</div>
+    <button class="menu-toggle" onclick="toggleMenu()">☰</button>
+</div>
+
+<div class="sidebar" id="sidebar">
   <h2>Admin Panel</h2>
   <a class="active" href="/dashboard"><span>Dashboard</span></a>
   <a href="/orders"><span>Orders</span></a>
@@ -293,6 +335,27 @@
             scales: {
                 y: { beginAtZero: true, ticks: { callback: value => value.toLocaleString() } }
             }
+        }
+    });
+</script>
+
+<script>
+    function toggleMenu() {
+        const sidebar = document.getElementById('sidebar');
+        sidebar.classList.toggle('active');
+        const toggleBtn = document.querySelector('.menu-toggle');
+        toggleBtn.innerText = sidebar.classList.contains('active') ? '✕' : '☰';
+    }
+
+    // Close sidebar when clicking outside on mobile
+    document.addEventListener('click', function(event) {
+        const sidebar = document.getElementById('sidebar');
+        const menuToggle = document.querySelector('.menu-toggle');
+        const isClickInsideSidebar = sidebar.contains(event.target);
+        const isClickInsideToggle = menuToggle.contains(event.target);
+
+        if (!isClickInsideSidebar && !isClickInsideToggle && sidebar.classList.contains('active') && window.innerWidth <= 768) {
+            toggleMenu();
         }
     });
 </script>

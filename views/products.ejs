@@ -34,6 +34,8 @@
             position: fixed; 
             height: 100%; 
             overflow: auto; 
+            transition: all 0.3s ease;
+            z-index: 1000;
         }
 
         .sidebar h2 {
@@ -63,9 +65,30 @@
             color: white; 
         }
 
+        .mobile-header {
+            display: none;
+            background: var(--sidebar-bg);
+            color: white;
+            padding: 15px 20px;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1001;
+        }
+
+        .menu-toggle {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
         .content { 
             margin-left: 250px; 
             padding: 40px; 
+            transition: all 0.3s ease;
         }
 
         h2.page-title {
@@ -175,11 +198,40 @@
             font-size: 13px;
             font-weight: 500;
         }
+
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar { 
+                left: -250px; 
+            }
+            .sidebar.active {
+                left: 0;
+            }
+            .content { 
+                margin-left: 0; 
+                padding: 20px; 
+            }
+            .mobile-header {
+                display: flex;
+            }
+            .form-group input {
+                font-size: 16px; /* Prevent zoom on iOS */
+            }
+        }
     </style>
 </head>
 <body>
 
-<div class="sidebar">
+<div class="mobile-header">
+    <div style="font-weight: 700; font-size: 18px;">Admin Panel</div>
+    <button class="menu-toggle" onclick="toggleMenu()">☰</button>
+</div>
+
+<div class="sidebar" id="sidebar">
   <h2>Admin Panel</h2>
   <a href="/dashboard">Dashboard</a>
   <a href="/orders">Orders</a>
@@ -214,30 +266,32 @@
         <h3>Current Products</h3>
     </div>
     <% if (products && products.length > 0) { %>
-      <table>
-        <thead>
-          <tr>
-            <th>Game</th>
-            <th>Package</th>
-            <th>Price</th>
-            <th style="text-align: right;">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% products.forEach(p => { %>
+      <div class="table-responsive">
+        <table>
+          <thead>
             <tr>
-              <td><span class="game-badge"><%= p.game %></span></td>
-              <td><%= p.package %></td>
-              <td class="price-tag"><%= p.price.toLocaleString() %> UZS</td>
-              <td style="text-align: right;">
-                <form action="/products/<%= p._id %>/delete" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this product?');">
-                  <button type="submit" class="btn btn-danger">Delete</button>
-                </form>
-              </td>
+              <th>Game</th>
+              <th>Package</th>
+              <th>Price</th>
+              <th style="text-align: right;">Action</th>
             </tr>
-          <% }) %>
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            <% products.forEach(p => { %>
+              <tr>
+                <td><span class="game-badge"><%= p.game %></span></td>
+                <td><%= p.package %></td>
+                <td class="price-tag"><%= p.price.toLocaleString() %> UZS</td>
+                <td style="text-align: right;">
+                  <form action="/products/<%= p._id %>/delete" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this product?');">
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                  </form>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
     <% } else { %>
       <div style="padding: 0 30px 30px 30px;">
           <p style="color: var(--text-muted);">No products found. Add some above.</p>
@@ -246,6 +300,27 @@
   </div>
 
 </div>
+
+<script>
+    function toggleMenu() {
+        const sidebar = document.getElementById('sidebar');
+        sidebar.classList.toggle('active');
+        const toggleBtn = document.querySelector('.menu-toggle');
+        toggleBtn.innerText = sidebar.classList.contains('active') ? '✕' : '☰';
+    }
+
+    // Close sidebar when clicking outside on mobile
+    document.addEventListener('click', function(event) {
+        const sidebar = document.getElementById('sidebar');
+        const menuToggle = document.querySelector('.menu-toggle');
+        const isClickInsideSidebar = sidebar.contains(event.target);
+        const isClickInsideToggle = menuToggle.contains(event.target);
+
+        if (!isClickInsideSidebar && !isClickInsideToggle && sidebar.classList.contains('active') && window.innerWidth <= 768) {
+            toggleMenu();
+        }
+    });
+</script>
 
 </body>
 </html>

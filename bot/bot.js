@@ -37,234 +37,254 @@ bot.use(async (ctx, next) => {
 
 
 // --- User Flow Scene ---
-const topupWizard = new Scenes.WizardScene(
-    'TOPUP_WIZARD',
-    // Step 1: Select Game
-    async (ctx) => {
-        const lang = ctx.userLang;
-        const text = ctx.message?.text;
+// --- User Flow Scene Helpers ---
 
-        // FALLBACK: If we receive a game name here (due to session lag), move to next step
-        if (text && text !== t(lang, 'btn_topup') && !['/start', '/topup'].includes(text)) {
-            const gameExists = await Product.exists({ game: text, isActive: true });
-            if (gameExists) {
-                ctx.wizard.selectStep(1);
-                return ctx.wizard.steps[ctx.wizard.cursor](ctx);
+const notifyAdmins = async (ctx, order, photoFileId = null) => {
+    const adminIdsStr = process.env.ADMIN_IDS || '';
+    const adminIds = adminIdsStr.split(',').map(id => id.trim()).filter(id => id !== '');
+    if (adminIds.length === 0) {
+        console.warn("No ADMIN_IDS configured for notifications.");
+        return;
+    }
+
+    const orderData = {
+        orderId: order.order_id,
+        game: order.game,
+        playerId: order.player_id,
+        amount: order.amount,
+        price: order.price,
+        username: order.username || 'N/A',
+        userId: order.telegram_user_id
+    };
+
+    console.log(`Notifying ${adminIds.length} admins for order ${order.order_id} (Status: ${order.status})`);
+
+    for (const adminId of adminIds) {
+        try {
+            const adminUser = await User.findOne({ telegram_user_id: Number(adminId) });
+            const adminLang = adminUser?.language_code || 'en';
+            const adminMsg = t(adminLang, 'admin_new_order_notif', orderData);
+
+            if (photoFileId) {
+                await ctx.telegram.sendPhoto(adminId, photoFileId, {
+                    caption: adminMsg,
+                    parse_mode: 'Markdown'
+                });
+            } else {
+                await ctx.telegram.sendMessage(adminId, `🔔 **New Pending Order**\n\n` + adminMsg, {
+                    parse_mode: 'Markdown'
+                });
             }
+        } catch (notificationErr) {
+            console.error(`Failed to notify admin ${adminId}:`, notificationErr);
         }
+    }
+};
 
-        ctx.wizard.state.order = {};
-        const products = await Product.find({ isActive: true }).distinct('game');
-        if (products.length === 0) {
-            console.log("No products found in DB for user:", ctx.from.id);
-            await ctx.reply(t(lang, 'no_games'), Markup.keyboard(getMainMenu(lang)).resize());
-            return ctx.scene.leave();
-        }
+const topupStep1 = async (ctx) => {
+    const lang = ctx.userLang;
+    const text = ctx.message?.text;
 
-        // Format keyboard neatly (2 buttons per row)
-        const buttons = [];
-        for (let i = 0; i < products.length; i += 2) {
-            const row = [products[i]];
-            if (products[i+1]) row.push(products[i+1]);
-            buttons.push(row);
-        }
-        buttons.push([t(lang, 'btn_back_main')]);
-
-        await ctx.reply(t(lang, 'select_game'), Markup.keyboard(buttons).resize().oneTime());
-        return ctx.wizard.next();
-    },
-    // Step 2: Receive Game, Ask Player ID
-    async (ctx) => {
-        const lang = ctx.userLang;
-        const text = ctx.message?.text;
-        
-        if (text === t(lang, 'btn_cancel') || text === t(lang, 'btn_back_main') || text === '/cancel') {
-            await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
-            return ctx.scene.leave();
-        }
-
+    // FALLBACK: If we receive a game name here (due to session lag/duplicate button sync), move to next step
+    if (text && text !== t(lang, 'btn_topup') && !['/start', '/topup'].includes(text)) {
         const gameExists = await Product.exists({ game: text, isActive: true });
-        if (!gameExists) {
-            await ctx.reply(t(lang, 'invalid_game'));
-            return;
+        if (gameExists) {
+            ctx.wizard.selectStep(1);
+            return topupStep2(ctx); // Direct function call is the safest way to re-trigger
         }
-        ctx.wizard.state.order.game = text;
+    }
 
-        const options = await Product.find({ game: text, isActive: true }).sort({ price: 1 });
-        if (options.length === 0) {
-            console.log("No packages found for game:", text);
-            await ctx.reply(t(lang, 'no_packages'), Markup.keyboard(getMainMenu(lang)).resize());
-            return ctx.scene.leave();
-        }
+    ctx.wizard.state.order = {};
+    const products = await Product.find({ isActive: true }).distinct('game');
+    if (products.length === 0) {
+        await ctx.reply(t(lang, 'no_games'), Markup.keyboard(getMainMenu(lang)).resize());
+        return ctx.scene.leave();
+    }
 
-        // format package labels like "60 UC - 1000 so'm"
+    const buttons = [];
+    for (let i = 0; i < products.length; i += 2) {
+        const row = [products[i]];
+        if (products[i+1]) row.push(products[i+1]);
+        buttons.push(row);
+    }
+    buttons.push([t(lang, 'btn_back_main')]);
+
+    await ctx.reply(t(lang, 'select_game'), Markup.keyboard(buttons).resize().oneTime());
+    return ctx.wizard.next();
+};
+
+const topupStep2 = async (ctx) => {
+    const lang = ctx.userLang;
+    const text = ctx.message?.text;
+    
+    if (text === t(lang, 'btn_cancel') || text === t(lang, 'btn_back_main') || text === '/cancel') {
+        await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
+        return ctx.scene.leave();
+    }
+
+    const gameExists = await Product.exists({ game: text, isActive: true });
+    if (!gameExists) {
+        await ctx.reply(t(lang, 'invalid_game'));
+        return;
+    }
+    ctx.wizard.state.order.game = text;
+
+    const options = await Product.find({ game: text, isActive: true }).sort({ price: 1 });
+    if (options.length === 0) {
+        await ctx.reply(t(lang, 'no_packages'), Markup.keyboard(getMainMenu(lang)).resize());
+        return ctx.scene.leave();
+    }
+
+    const buttons = options.map(opt => [`${opt.package} - ${opt.price} so'm`]);
+    buttons.push([t(lang, 'btn_back'), t(lang, 'btn_back_main')]);
+
+    await ctx.reply(t(lang, 'ask_amount'), Markup.keyboard(buttons).resize().oneTime());
+    return ctx.wizard.next();
+};
+
+const topupStep3 = async (ctx) => {
+    const lang = ctx.userLang;
+    const text = ctx.message?.text;
+    
+    if (text === t(lang, 'btn_back_main') || text === '/cancel') {
+        await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
+        return ctx.scene.leave();
+    }
+
+    if (text === t(lang, 'btn_back')) {
+        ctx.wizard.selectStep(0);
+        return topupStep1(ctx);
+    }
+
+    if (!text || !text.includes(' - ')) {
+        return ctx.reply(t(lang, 'invalid_game')); // Packages should be from buttons
+    }
+
+    ctx.wizard.state.order.amount_price = text;
+    const [amount, price] = text.split(' - ');
+    ctx.wizard.state.order.amount = amount;
+    ctx.wizard.state.order.price = price;
+
+    await ctx.reply(t(lang, 'ask_player_id', { game: ctx.wizard.state.order.game }), Markup.keyboard([[t(lang, 'btn_back'), t(lang, 'btn_back_main')]]).resize());
+    return ctx.wizard.next();
+};
+
+const topupStep4 = async (ctx) => {
+    const lang = ctx.userLang;
+    const text = ctx.message?.text;
+    
+    if (text === t(lang, 'btn_back_main') || text === '/cancel') {
+        await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
+        return ctx.scene.leave();
+    }
+
+    if (text === t(lang, 'btn_back')) {
+        const game = ctx.wizard.state.order.game;
+        const options = await Product.find({ game: game, isActive: true }).sort({ price: 1 });
         const buttons = options.map(opt => [`${opt.package} - ${opt.price} so'm`]);
         buttons.push([t(lang, 'btn_back'), t(lang, 'btn_back_main')]);
 
+        ctx.wizard.selectStep(2); 
         await ctx.reply(t(lang, 'ask_amount'), Markup.keyboard(buttons).resize().oneTime());
-        return ctx.wizard.next();
-    },
-    // Step 3: Receive Package, Ask Player ID
-    async (ctx) => {
-        const lang = ctx.userLang;
-        const text = ctx.message?.text;
-        
-        if (text === t(lang, 'btn_back_main') || text === '/cancel') {
-            await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
-            return ctx.scene.leave();
-        }
+        return; 
+    }
 
-        if (text === t(lang, 'btn_back')) {
-            // Go back to step 1 (game selection)
-            ctx.wizard.selectStep(0);
-            return ctx.wizard.steps[ctx.wizard.cursor](ctx);
-        }
+    if (!text) return ctx.reply(t(lang, 'provide_text'));
+    
+    const game = ctx.wizard.state.order.game;
+    ctx.wizard.state.order.player_id = text;
 
-        if (!text || !text.includes(' - ')) {
-            return ctx.reply(t(lang, 'invalid_game')); // Reuse invalid_game or make a new one if needed, but here packages should be selected from buttons
-        }
+    const orderId = 'ORD-' + crypto.randomBytes(4).toString('hex').toUpperCase();
+    ctx.wizard.state.order.orderId = orderId;
 
-        ctx.wizard.state.order.amount_price = text; // e.g. "60 UC - 1000 so'm"
-        const [amount, price] = text.split(' - ');
-        ctx.wizard.state.order.amount = amount;
-        ctx.wizard.state.order.price = price;
-
-        await ctx.reply(t(lang, 'ask_player_id', { game: ctx.wizard.state.order.game }), Markup.keyboard([[t(lang, 'btn_back'), t(lang, 'btn_back_main')]]).resize());
-        return ctx.wizard.next();
-    },
-    // Step 4: Receive Player ID, Show Summary & Ask Screenshot
-    async (ctx) => {
-        const lang = ctx.userLang;
-        const text = ctx.message?.text;
-        
-        if (text === t(lang, 'btn_back_main') || text === '/cancel') {
-            await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
-            return ctx.scene.leave();
-        }
-
-        if (text === t(lang, 'btn_back')) {
-            // Re-show packages
-            const game = ctx.wizard.state.order.game;
-            const options = await Product.find({ game: game, isActive: true }).sort({ price: 1 });
-            const buttons = options.map(opt => [`${opt.package} - ${opt.price} so'm`]);
-            buttons.push([t(lang, 'btn_back'), t(lang, 'btn_back_main')]);
-
-            ctx.wizard.selectStep(2); // Set cursor back to receive package step
-            await ctx.reply(t(lang, 'ask_amount'), Markup.keyboard(buttons).resize().oneTime());
-            return; 
-        }
-
-        if (!text) return ctx.reply(t(lang, 'provide_text'));
-        
-        const game = ctx.wizard.state.order.game;
-        ctx.wizard.state.order.player_id = text;
-
-        const orderId = 'ORD-' + crypto.randomBytes(4).toString('hex').toUpperCase();
-        ctx.wizard.state.order.orderId = orderId;
-
-        try {
-            await Order.create({
-                order_id: orderId,
-                telegram_user_id: ctx.from.id,
-                username: ctx.from.username || '',
-                game: game,
-                player_id: text,
-                amount: ctx.wizard.state.order.amount,
-                price: ctx.wizard.state.order.price,
-                status: 'pending'
-            });
-        } catch (err) {
-            console.error("Error creating pending order:", err);
-            await ctx.reply(t(lang, 'order_error'));
-            return ctx.scene.leave();
-        }
-
-        await ctx.reply(t(lang, 'order_summary', { 
-            game: game, 
-            playerId: text, 
-            amount: ctx.wizard.state.order.amount, 
+    try {
+        const order = await Order.create({
+            order_id: orderId,
+            telegram_user_id: ctx.from.id,
+            username: ctx.from.username || '',
+            game: game,
+            player_id: text,
+            amount: ctx.wizard.state.order.amount,
             price: ctx.wizard.state.order.price,
-            orderId
-        }), Markup.keyboard([[t(lang, 'btn_back'), t(lang, 'btn_back_main')]]).resize());
-        return ctx.wizard.next();
-    },
-    // Step 5: Receive Screenshot, Save Order
-    async (ctx) => {
-        const lang = ctx.userLang;
+            status: 'pending'
+        });
         
-        if (ctx.message?.text === t(lang, 'btn_back_main') || ctx.message?.text === '/cancel') {
-            await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
-            return ctx.scene.leave();
-        }
+        // Notify admins about new order registration (unpaid yet)
+        notifyAdmins(ctx, order);
 
-        if (ctx.message?.text === t(lang, 'btn_back')) {
-            // Re-ask player ID
-            ctx.wizard.selectStep(3); // Set cursor back to receive player ID step
-            await ctx.reply(t(lang, 'ask_player_id', { game: ctx.wizard.state.order.game }), Markup.keyboard([[t(lang, 'btn_back'), t(lang, 'btn_back_main')]]).resize());
-            return;
-        }
-
-        if (!ctx.message?.photo) {
-            await ctx.reply(t(lang, 'invalid_photo'));
-            return;
-        }
-
-        const photoFileId = ctx.message.photo[ctx.message.photo.length - 1].file_id;
-        const orderId = ctx.wizard.state.order?.orderId;
-
-        if (!orderId) {
-            console.error("Session data lost! Order ID missing for user:", ctx.from.id);
-            await ctx.reply(t(lang, 'order_error'), Markup.keyboard(getMainMenu(lang)).resize());
-            return ctx.scene.leave();
-        }
-
-        try {
-            await Order.findOneAndUpdate({ order_id: orderId }, {
-                screenshot_file_id: photoFileId,
-                status: 'paid'
-            });
-
-            await ctx.reply(t(lang, 'order_received', { orderId }), Markup.keyboard(getMainMenu(lang)).resize());
-            
-            // Notify admins
-            const adminIdsStr = process.env.ADMIN_IDS || '';
-            const adminIds = adminIdsStr.split(',').map(id => id.trim()).filter(id => id !== '');
-            
-            if (adminIds.length > 0) {
-                const orderData = {
-                    orderId: orderId,
-                    game: ctx.wizard.state.order.game,
-                    playerId: ctx.wizard.state.order.player_id,
-                    amount: ctx.wizard.state.order.amount,
-                    price: ctx.wizard.state.order.price,
-                    username: ctx.from.username || 'N/A',
-                    userId: ctx.from.id
-                };
-
-                for (const adminId of adminIds) {
-                    try {
-                        const adminUser = await User.findOne({ telegram_user_id: Number(adminId) });
-                        const adminLang = adminUser?.language_code || 'en';
-                        
-                        const adminMsg = t(adminLang, 'admin_new_order_notif', orderData);
-
-                        await ctx.telegram.sendPhoto(adminId, photoFileId, {
-                            caption: adminMsg,
-                            parse_mode: 'Markdown'
-                        });
-                    } catch (notificationErr) {
-                        console.error(`Failed to notify admin ${adminId}:`, notificationErr);
-                    }
-                }
-            }
-
-        } catch (err) {
-            console.error(err);
-            await ctx.reply(t(lang, 'order_error'), Markup.keyboard(getMainMenu(lang)).resize());
-        }
-
+    } catch (err) {
+        console.error("Error creating pending order:", err);
+        await ctx.reply(t(lang, 'order_error'));
         return ctx.scene.leave();
     }
+
+    await ctx.reply(t(lang, 'order_summary', { 
+        game: game, 
+        playerId: text, 
+        amount: ctx.wizard.state.order.amount, 
+        price: ctx.wizard.state.order.price,
+        orderId
+    }), Markup.keyboard([[t(lang, 'btn_back'), t(lang, 'btn_back_main')]]).resize());
+    return ctx.wizard.next();
+};
+
+const topupStep5 = async (ctx) => {
+    const lang = ctx.userLang;
+    
+    if (ctx.message?.text === t(lang, 'btn_back_main') || ctx.message?.text === '/cancel') {
+        await ctx.reply(t(lang, 'topup_cancelled'), Markup.keyboard(getMainMenu(lang)).resize());
+        return ctx.scene.leave();
+    }
+
+    if (ctx.message?.text === t(lang, 'btn_back')) {
+        ctx.wizard.selectStep(3);
+        await ctx.reply(t(lang, 'ask_player_id', { game: ctx.wizard.state.order.game }), Markup.keyboard([[t(lang, 'btn_back'), t(lang, 'btn_back_main')]]).resize());
+        return;
+    }
+
+    if (!ctx.message?.photo) {
+        await ctx.reply(t(lang, 'invalid_photo'));
+        return;
+    }
+
+    const photoFileId = ctx.message.photo[ctx.message.photo.length - 1].file_id;
+    const orderId = ctx.wizard.state.order?.orderId;
+
+    if (!orderId) {
+        console.error("Session data lost! Order ID missing for user:", ctx.from.id);
+        await ctx.reply(t(lang, 'order_error'), Markup.keyboard(getMainMenu(lang)).resize());
+        return ctx.scene.leave();
+    }
+
+    try {
+        const order = await Order.findOneAndUpdate({ order_id: orderId }, {
+            screenshot_file_id: photoFileId,
+            status: 'paid'
+        }, { new: true });
+
+        await ctx.reply(t(lang, 'order_received', { orderId }), Markup.keyboard(getMainMenu(lang)).resize());
+        
+        // Notify admins about PAYMENT
+        if (order) {
+            notifyAdmins(ctx, order, photoFileId);
+        }
+
+    } catch (err) {
+        console.error("Error finalizing order with screenshot:", err);
+        await ctx.reply(t(lang, 'order_error'), Markup.keyboard(getMainMenu(lang)).resize());
+    }
+
+    return ctx.scene.leave();
+};
+
+// --- Wizard Scene Definition ---
+const topupWizard = new Scenes.WizardScene(
+    'TOPUP_WIZARD',
+    topupStep1,
+    topupStep2,
+    topupStep3,
+    topupStep4,
+    topupStep5
 );
 
 bot.command('cancel', (ctx) => {
@@ -325,9 +345,10 @@ const stage = new Scenes.Stage([topupWizard, addProductWizard]);
 // Persistent Session Setup
 const client = new MongoClient(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/telegram_top_up_botz');
 const db = client.db();
+console.log(`Bot Session Store using DB: ${db.databaseName}`);
 
 // Ensure client is connected
-client.connect().catch(err => console.error('MongoDB Session Client Connect Error:', err));
+client.connect().then(() => console.log('✅ Bot Session MongoDB Client Connected')).catch(err => console.error('❌ Bot Session MongoDB Client Connect Error:', err));
 
 bot.use(mdbSession(db, { collectionName: 'telegraf-sessions' }));
 bot.use(stage.middleware());
@@ -467,11 +488,11 @@ const isAdmin = (ctx, next) => {
         adminIds = process.env.ADMIN_IDS.split(',').map(id => Number(id.trim()));
     }
     
-    // For local testing if the env var is empty, we COULD let everyone pass,
-    // but the user wants real authentication. If you haven't filled it, we block.
     if (!adminIds.includes(ctx.from.id)) {
+        console.warn(`Unauthorized admin attempt by ${ctx.from.id} (@${ctx.from.username})`);
         return ctx.reply('❌ You do not have permission to use admin commands.', Markup.keyboard(getMainMenu(ctx.userLang)).resize());
     }
+    console.log(`Admin ${ctx.from.id} authenticated.`);
     return next(); 
 };
 
@@ -590,8 +611,11 @@ bot.action('admin_add_product', isAdmin, async (ctx) => {
 // Pending Orders Interactive
 bot.hears('📦 Pending Orders', isAdmin, async (ctx) => {
     try {
+        console.log(`Admin ${ctx.from.id} requested pending orders.`);
         // Show BOTH paid (to process) and pending (unpaid) to give admin full view
         const orders = await Order.find({ status: { $in: ['paid', 'pending'] } }).sort({ created_at: -1 }).limit(20);
+        
+        console.log(`Found ${orders.length} orders for admin review.`);
         
         if (orders.length === 0) {
             return ctx.reply('✅ There are no pending or paid orders!', Markup.keyboard(getAdminMenu(ctx.userLang)).resize());
@@ -600,30 +624,35 @@ bot.hears('📦 Pending Orders', isAdmin, async (ctx) => {
         await ctx.reply(`Found ${orders.length} recent pending/paid orders:`, Markup.keyboard(getAdminMenu(ctx.userLang)).resize());
 
         for (const o of orders) {
-            let msg = `📦 **Order ID**: ${o.order_id}\n` +
-                      `🚦 **Status**: ${o.status.toUpperCase()}\n` +
-                      `🕹 **Game**: ${o.game}\n` +
-                      `🆔 **Player**: ${o.player_id}\n` +
-                      `💰 **Package**: ${o.amount}\n` +
-                      `💲 **Price**: ${o.price} so'm\n` +
-                      `👤 **User**: @${o.username || o.telegram_user_id}`;
-            
-            if (o.status === 'paid' && o.screenshot_file_id) {
-                await ctx.replyWithPhoto(o.screenshot_file_id, { 
-                    caption: msg,
-                    parse_mode: 'Markdown',
-                    ...Markup.inlineKeyboard([
-                        [Markup.button.callback('✅ Complete', `approve_${o.order_id}`)],
-                        [Markup.button.callback('❌ Reject', `reject_${o.order_id}`)]
-                    ])
-                });
-            } else {
-                await ctx.replyWithMarkdown(msg + "\n\n*(Waiting for screenshot)*");
+            try {
+                let msg = `📦 **Order ID**: ${o.order_id}\n` +
+                          `🚦 **Status**: ${o.status.toUpperCase()}\n` +
+                          `🕹 **Game**: ${o.game}\n` +
+                          `🆔 **Player**: ${o.player_id}\n` +
+                          `💰 **Package**: ${o.amount}\n` +
+                          `💲 **Price**: ${o.price} so'm\n` +
+                          `👤 **User**: @${o.username || o.telegram_user_id}`;
+                
+                if (o.status === 'paid' && o.screenshot_file_id) {
+                    await ctx.replyWithPhoto(o.screenshot_file_id, { 
+                        caption: msg,
+                        parse_mode: 'Markdown',
+                        ...Markup.inlineKeyboard([
+                            [Markup.button.callback('✅ Complete', `approve_${o.order_id}`)],
+                            [Markup.button.callback('❌ Reject', `reject_${o.order_id}`)]
+                        ])
+                    });
+                } else {
+                    await ctx.replyWithMarkdown(msg + "\n\n*(Waiting for screenshot)*");
+                }
+            } catch (itemErr) {
+                console.error(`Error rendering order ${o.order_id}:`, itemErr);
+                await ctx.reply(`❌ Error displaying order ${o.order_id}. Skipping...`);
             }
         }
     } catch (err) {
-         console.error(err);
-         ctx.reply('Error fetching pending orders.');
+         console.error('CRITICAL: Pending Orders command failed:', err);
+         ctx.reply('Error fetching pending orders. Please check logs.');
     }
 });
 
